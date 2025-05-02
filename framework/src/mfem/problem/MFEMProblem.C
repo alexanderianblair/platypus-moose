@@ -186,8 +186,16 @@ MFEMProblem::addGridFunction(const std::string & var_type,
   }
 
   // Register gridfunction.
-  MFEMVariable & mfem_variable = getUserObject<MFEMVariable>(var_name);
-  getProblemData().gridfunctions.Register(var_name, mfem_variable.getGridFunction());
+  if (var_type == "MFEMComplexVariable")
+  {
+    MFEMComplexVariable & mfem_variable = getUserObject<MFEMComplexVariable>(var_name);
+    getProblemData().complex_gridfunctions.Register(var_name, mfem_variable.getComplexGridFunction());
+  } 
+  else // must be real, but may have been set up indirectly from a MOOSE variable
+  {
+    MFEMVariable & mfem_variable = getUserObject<MFEMVariable>(var_name);
+    getProblemData().gridfunctions.Register(var_name, mfem_variable.getGridFunction());
+  }
 }
 
 void

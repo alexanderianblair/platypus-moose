@@ -9,6 +9,7 @@
 #include "MFEMProblemData.h"
 #include "MFEMMesh.h"
 #include "MFEMMaterial.h"
+#include "MFEMComplexVariable.h"
 #include "MFEMVariable.h"
 #include "MFEMBoundaryCondition.h"
 #include "MFEMKernel.h"
