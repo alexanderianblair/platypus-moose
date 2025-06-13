@@ -35,6 +35,27 @@ MFEMHypreAMS::constructSolver(const InputParameters &)
 
   solver->SetPrintLevel(getParam<int>("print_level"));
 
+  mfem::ParGridFunction interior(_mfem_fespace.getFESpace().get());
+  interior = 1.0;
+  auto pmesh = _mfem_fespace.getFESpace()->GetMesh();  
+  for (int i = 0; i < pmesh->GetNE(); i++)
+  {
+    int global = pmesh->GetElement(i)->GetAttribute();
+    if (global == 1)
+    {
+        mfem::Array<int> dofs;
+        _mfem_fespace.getFESpace()->GetNEDofs();
+        for (int j = 0; j < dofs.Size(); j++)
+        {
+          interior[dofs[j]] = mfem::real_t(0.0);
+        }
+    }
+  }
+  
+  mfem::HypreParVector *interior_tdofs = interior.GetTrueDofs();
+  HYPRE_AMSSetInteriorNodes(*solver, *interior_tdofs);
+  HYPRE_AMSSetProjectionFrequency(*solver, 1);
+
   _solver = solver;
 }
 
