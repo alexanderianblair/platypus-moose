@@ -106,11 +106,21 @@
   []
 []
 
+[BCs]
+  [high_terminal]
+    type = MFEMScalarDirichletBC
+    variable = coil_potential
+    boundary = 'Cut'
+    coefficient = 0.0
+  []
+[]
+
 [Kernels]
   [diff]
     type = MFEMDiffusionKernel
     variable = coil_potential
     coefficient = diffusivity
+    block = coil
   []
   [source]
     type = MFEMMixedVectorGradientKernel
@@ -158,6 +168,16 @@
     to_variable = potential
     execute_on = TIMESTEP_END
   []  
+[]
+
+[Postprocessors]
+  [TotalCurrent]
+    type = MFEMBoundaryNetFluxPostprocessor
+    variable = current_density
+    transition_variable = grad_source_potential
+    block = 'cut_test'
+    execution_order_group = 3
+  []
 []
 
 [Outputs]

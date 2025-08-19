@@ -137,14 +137,6 @@
   []  
 []
 
-[Postprocessors]
-  [TotalCurrent]
-    type = MFEMBoundaryNetFluxPostprocessor
-    variable = current_density
-    boundary = 'MeasurementPlane'
-  []
-[]
-
 [Outputs]
   [ParaViewDataCollection]
     type = MFEMParaViewDataCollection

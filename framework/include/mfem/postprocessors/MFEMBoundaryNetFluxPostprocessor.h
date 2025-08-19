@@ -11,12 +11,12 @@
 
 #pragma once
 #include "MFEMPostprocessor.h"
-#include "MFEMBoundaryRestrictable.h"
+#include "MFEMBlockRestrictable.h"
 
 /**
  * Compute the total flux crossing a sideset in the problem.
  */
-class MFEMBoundaryNetFluxPostprocessor : public MFEMPostprocessor, public MFEMBoundaryRestrictable
+class MFEMBoundaryNetFluxPostprocessor : public MFEMPostprocessor, public MFEMBlockRestrictable
 {
 public:
   static InputParameters validParams();
@@ -33,7 +33,8 @@ public:
 
 private:
   mfem::real_t _total_flux;
-  mfem::GridFunction & _var;
+  mfem::ParGridFunction & _var;
+  mfem::ParGridFunction & _transition_var;  
 };
 
 #endif
