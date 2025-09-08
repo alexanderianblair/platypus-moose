@@ -471,7 +471,7 @@ MFEMProblem::getAuxVariableNames()
 MFEMMesh &
 MFEMProblem::mesh()
 {
-  mooseAssert(ExternalProblem::mesh().type() == "MFEMMesh",
+  mooseAssert(ExternalProblem::mesh().type() == "MFEMMesh" || ExternalProblem::mesh().type() == "MFEMCoupledMesh",
               "Please choose the MFEMMesh mesh type for an MFEMProblem\n");
   return static_cast<MFEMMesh &>(_mesh);
 }

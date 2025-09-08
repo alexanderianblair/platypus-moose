@@ -305,9 +305,20 @@ MFEMCoupledMesh::getMeshPartitioning()
 
 void
 MFEMCoupledMesh::buildMesh()
-{
+{  
+  // const MooseMesh * _base_mesh;
+  // _base_mesh = _app.masterMesh();
+
+  // _app.masterMesh();
+  // if (isParamValid("source_mesh"))
+  //   _base_mesh = getParam<MooseMesh *>("source_mesh");
+  // else if (!_app.isUltimateMaster() && _app.masterMesh())
+  //   _base_mesh = _app.masterMesh();
+
   // Use method from file mesh to build MOOSE mesh from Exodus file.
-  FileMesh::buildMesh();
+    // std::unique_ptr<libMesh::MeshBase> _mesh;
+  _mesh = _app.masterMesh()->getMesh().clone();
+  // FileMesh::buildMesh();
 
   // 1. If the mesh is distributed and split between more than one processor,
   // we need to call allgather on each processor. This will gather the nodes
