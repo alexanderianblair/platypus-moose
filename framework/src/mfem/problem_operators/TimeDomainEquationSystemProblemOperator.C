@@ -16,7 +16,7 @@ namespace Moose::MFEM
 void
 TimeDomainEquationSystemProblemOperator::SetGridFunctions()
 {
-  _test_var_names = GetEquationSystem()->TestVarNames();
+  _eqn_names = GetEquationSystem()->TestVarNames();
   _trial_var_names = GetEquationSystem()->TrialVarNames();
 
   TimeDomainProblemOperator::SetGridFunctions();
@@ -60,11 +60,11 @@ TimeDomainEquationSystemProblemOperator::ImplicitSolve(const double dt,
   _problem_data.coefficients.setTime(GetTime());
   BuildEquationSystemOperator(dt);
 
-  if (_problem_data.jacobian_solver->isLOR() && _equation_system->_test_var_names.size() > 1)
+  if (_problem_data.jacobian_solver->isLOR() && _equation_system->_eqn_names.size() > 1)
     mooseError("LOR solve is only supported for single-variable systems");
 
   _problem_data.jacobian_solver->updateSolver(
-      *_equation_system->_blfs.Get(_equation_system->_test_var_names.at(0)),
+      *_equation_system->_blfs.Get(_equation_system->_eqn_names.at(0)),
       _equation_system->_ess_tdof_lists.at(0));
 
   _problem_data.nonlinear_solver->SetSolver(_problem_data.jacobian_solver->getSolver());

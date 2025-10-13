@@ -24,7 +24,7 @@ ProblemOperatorBase::ProblemOperatorBase(MFEMProblem & problem)
 void
 ProblemOperatorBase::SetGridFunctions()
 {
-  _test_variables = _problem_data.gridfunctions.Get(_test_var_names);
+  _test_variables = _problem_data.gridfunctions.Get(_eqn_names);
   _trial_variables = _problem_data.gridfunctions.Get(_trial_var_names);
 
   // Set operator size and block structure

@@ -38,7 +38,7 @@ public:
   ~EquationSystem() override;
 
   /// Add test variable to EquationSystem.
-  virtual void AddTestVariableNameIfMissing(const std::string & test_var_name);
+  virtual void AddTestVariableNameIfMissing(const std::string & eqn_name);
   /// Add coupled variable to EquationSystem.
   virtual void AddCoupledVariableNameIfMissing(const std::string & coupled_var_name);
 
@@ -54,7 +54,7 @@ public:
   /// Build linear forms and eliminate constrained DoFs
   virtual void BuildLinearForms();
   virtual void ApplyEssentialBCs();
-  virtual void ApplyEssentialBC(const std::string & test_var_name,
+  virtual void ApplyEssentialBC(const std::string & eqn_name,
                                 mfem::ParGridFunction & trial_gf,
                                 mfem::Array<int> & global_ess_markers);
   virtual void EliminateCoupledVariables();
@@ -100,7 +100,7 @@ public:
   std::vector<mfem::Array<int>> _ess_tdof_lists;
 
   const std::vector<std::string> & TrialVarNames() const { return _trial_var_names; }
-  const std::vector<std::string> & TestVarNames() const { return _test_var_names; }
+  const std::vector<std::string> & TestVarNames() const { return _eqn_names; }
 
 private:
   /// Disallowed inherited method
@@ -133,7 +133,7 @@ protected:
   /// Pointers to coupled variables not part of the reduced EquationSystem.
   Moose::MFEM::GridFunctions _eliminated_variables;
   /// Names of all test variables corresponding to linear forms in this equation system
-  std::vector<std::string> _test_var_names;
+  std::vector<std::string> _eqn_names;
   /// Pointers to finite element spaces associated with test variables.
   std::vector<mfem::ParFiniteElementSpace *> _test_pfespaces;
   /// Pointers to finite element spaces associated with coupled variables.
@@ -153,13 +153,13 @@ protected:
   template <class FormType>
   void ApplyDomainBLFIntegrators(
       const std::string & trial_var_name,
-      const std::string & test_var_name,
+      const std::string & eqn_name,
       std::shared_ptr<FormType> form,
       Moose::MFEM::NamedFieldsMap<
           Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map);
 
   void ApplyDomainLFIntegrators(
-      const std::string & test_var_name,
+      const std::string & eqn_name,
       std::shared_ptr<mfem::ParLinearForm> form,
       Moose::MFEM::NamedFieldsMap<
           Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map);
@@ -167,14 +167,14 @@ protected:
   template <class FormType>
   void ApplyBoundaryBLFIntegrators(
       const std::string & trial_var_name,
-      const std::string & test_var_name,
+      const std::string & eqn_name,
       std::shared_ptr<FormType> form,
       Moose::MFEM::NamedFieldsMap<
           Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
           integrated_bc_map);
 
   void ApplyBoundaryLFIntegrators(
-      const std::string & test_var_name,
+      const std::string & eqn_name,
       std::shared_ptr<mfem::ParLinearForm> form,
       Moose::MFEM::NamedFieldsMap<
           Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
@@ -207,14 +207,14 @@ template <class FormType>
 void
 EquationSystem::ApplyDomainBLFIntegrators(
     const std::string & trial_var_name,
-    const std::string & test_var_name,
+    const std::string & eqn_name,
     std::shared_ptr<FormType> form,
     Moose::MFEM::NamedFieldsMap<
         Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map)
 {
-  if (kernels_map.Has(test_var_name) && kernels_map.Get(test_var_name)->Has(trial_var_name))
+  if (kernels_map.Has(eqn_name) && kernels_map.Get(eqn_name)->Has(trial_var_name))
   {
-    auto kernels = kernels_map.GetRef(test_var_name).GetRef(trial_var_name);
+    auto kernels = kernels_map.GetRef(eqn_name).GetRef(trial_var_name);
     for (auto & kernel : kernels)
     {
       mfem::BilinearFormIntegrator * integ = kernel->createBFIntegrator();
@@ -230,14 +230,14 @@ EquationSystem::ApplyDomainBLFIntegrators(
 
 inline void
 EquationSystem::ApplyDomainLFIntegrators(
-    const std::string & test_var_name,
+    const std::string & eqn_name,
     std::shared_ptr<mfem::ParLinearForm> form,
     Moose::MFEM::NamedFieldsMap<
         Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map)
 {
-  if (kernels_map.Has(test_var_name) && kernels_map.Get(test_var_name)->Has(test_var_name))
+  if (kernels_map.Has(eqn_name) && kernels_map.Get(eqn_name)->Has(eqn_name))
   {
-    auto kernels = kernels_map.GetRef(test_var_name).GetRef(test_var_name);
+    auto kernels = kernels_map.GetRef(eqn_name).GetRef(eqn_name);
     for (auto & kernel : kernels)
     {
       mfem::LinearFormIntegrator * integ = kernel->createLFIntegrator();
@@ -255,16 +255,15 @@ template <class FormType>
 void
 EquationSystem::ApplyBoundaryBLFIntegrators(
     const std::string & trial_var_name,
-    const std::string & test_var_name,
+    const std::string & eqn_name,
     std::shared_ptr<FormType> form,
     Moose::MFEM::NamedFieldsMap<
         Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
         integrated_bc_map)
 {
-  if (integrated_bc_map.Has(test_var_name) &&
-      integrated_bc_map.Get(test_var_name)->Has(trial_var_name))
+  if (integrated_bc_map.Has(eqn_name) && integrated_bc_map.Get(eqn_name)->Has(trial_var_name))
   {
-    auto bcs = integrated_bc_map.GetRef(test_var_name).GetRef(trial_var_name);
+    auto bcs = integrated_bc_map.GetRef(eqn_name).GetRef(trial_var_name);
     for (auto & bc : bcs)
     {
       mfem::BilinearFormIntegrator * integ = bc->createBFIntegrator();
@@ -280,16 +279,15 @@ EquationSystem::ApplyBoundaryBLFIntegrators(
 
 inline void
 EquationSystem::ApplyBoundaryLFIntegrators(
-    const std::string & test_var_name,
+    const std::string & eqn_name,
     std::shared_ptr<mfem::ParLinearForm> form,
     Moose::MFEM::NamedFieldsMap<
         Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
         integrated_bc_map)
 {
-  if (integrated_bc_map.Has(test_var_name) &&
-      integrated_bc_map.Get(test_var_name)->Has(test_var_name))
+  if (integrated_bc_map.Has(eqn_name) && integrated_bc_map.Get(eqn_name)->Has(eqn_name))
   {
-    auto bcs = integrated_bc_map.GetRef(test_var_name).GetRef(test_var_name);
+    auto bcs = integrated_bc_map.GetRef(eqn_name).GetRef(eqn_name);
     for (auto & bc : bcs)
     {
       mfem::LinearFormIntegrator * integ = bc->createLFIntegrator();
