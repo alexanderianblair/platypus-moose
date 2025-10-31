@@ -150,26 +150,26 @@ protected:
   /**
    * Returns a constant reference to the block info.
    */
-  inline const CubitBlockInfo & blockInfo() const { return _block_info; }
+  inline const mfem::cubit::CubitBlock & blockInfo() const { return _block_info; }
 
   /**
    * Returns a non-const reference to the block info.
    */
-  inline CubitBlockInfo & blockInfo() { return _block_info; }
+  inline mfem::cubit::CubitBlock & blockInfo() { return _block_info; }
 
   /**
    * Returns a const reference to the block element.
    */
-  inline const CubitElementInfo & blockElement(int block_id)
+  inline const mfem::cubit::CubitElement & blockElement(int block_id)
   {
-    return blockInfo().blockElement(block_id);
+    return blockInfo().GetBlockElement(block_id);
   }
 
 private:
   /**
    * Stores the element info for each block in the mesh.
    */
-  CubitBlockInfo _block_info;
+  mfem::cubit::CubitBlock _block_info;
   /**
    * Smart pointers to mfem::Mesh object created from libMesh mesh. Do not access directly.
    * Use the accessors instead.

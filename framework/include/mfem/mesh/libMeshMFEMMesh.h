@@ -22,35 +22,35 @@ public:
    * Initializer for 1st order elements.
    */
   libMeshMFEMMesh(const int num_elements_in_mesh,
-           const CubitBlockInfo & block_info,
-           const std::vector<int> & unique_block_ids,
-           const std::vector<int> & unique_side_boundary_ids,
-           const std::vector<int> & unique_libmesh_corner_node_ids,
-           const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
-           const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id,
-           const std::map<int, std::vector<std::vector<unsigned int>>> &
-               libmesh_node_ids_for_boundary_id,
-           const std::map<int, std::vector<int>> & libmesh_side_ids_for_boundary_id,
-           const std::map<int, std::vector<int>> & libmesh_block_ids_for_boundary_id,
-           const std::map<int, std::array<double, 3>> & coordinates_for_libmesh_node_id);
+                  const mfem::cubit::CubitBlock & block_info,
+                  const std::vector<int> & unique_block_ids,
+                  const std::vector<int> & unique_side_boundary_ids,
+                  const std::vector<int> & unique_libmesh_corner_node_ids,
+                  const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
+                  const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id,
+                  const std::map<int, std::vector<std::vector<unsigned int>>> &
+                      libmesh_node_ids_for_boundary_id,
+                  const std::map<int, std::vector<int>> & libmesh_side_ids_for_boundary_id,
+                  const std::map<int, std::vector<int>> & libmesh_block_ids_for_boundary_id,
+                  const std::map<int, std::array<double, 3>> & coordinates_for_libmesh_node_id);
 
   /**
    * Initializer for 2nd order elements.
    */
   libMeshMFEMMesh(const int num_elements_in_mesh,
-           const CubitBlockInfo & block_info,
-           const std::vector<int> & unique_block_ids,
-           const std::vector<int> & unique_side_boundary_ids,
-           const std::vector<int> & unique_libmesh_corner_node_ids,
-           const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
-           const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id,
-           const std::map<int, std::vector<std::vector<unsigned int>>> &
-               libmesh_node_ids_for_boundary_id,
-           const std::map<int, std::vector<int>> & libmesh_side_ids_for_boundary_id,
-           const std::map<int, std::vector<int>> & libmesh_block_ids_for_boundary_id,
-           const std::map<int, std::array<double, 3>> & coordinates_for_libmesh_node_id,
-           std::map<int, int> & libmesh_node_id_for_mfem_node_id,
-           std::map<int, int> & mfem_node_id_for_libmesh_node_id);
+                  const mfem::cubit::CubitBlock & block_info,
+                  const std::vector<int> & unique_block_ids,
+                  const std::vector<int> & unique_side_boundary_ids,
+                  const std::vector<int> & unique_libmesh_corner_node_ids,
+                  const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
+                  const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id,
+                  const std::map<int, std::vector<std::vector<unsigned int>>> &
+                      libmesh_node_ids_for_boundary_id,
+                  const std::map<int, std::vector<int>> & libmesh_side_ids_for_boundary_id,
+                  const std::map<int, std::vector<int>> & libmesh_block_ids_for_boundary_id,
+                  const std::map<int, std::array<double, 3>> & coordinates_for_libmesh_node_id,
+                  std::map<int, int> & libmesh_node_id_for_mfem_node_id,
+                  std::map<int, int> & mfem_node_id_for_libmesh_node_id);
 
   libMeshMFEMMesh(std::string mesh_fname,
            int generate_edges = 0,
@@ -66,7 +66,7 @@ protected:
    */
   void buildMFEMVerticesAndElements(
       const int num_elements_in_mesh,
-      const CubitBlockInfo & block_info,
+      const mfem::cubit::CubitBlock & block_info,
       const std::vector<int> & unique_block_ids,
       const std::vector<int> & unique_side_boundary_ids,
       const std::vector<int> & unique_libmesh_corner_node_ids,
@@ -91,7 +91,7 @@ protected:
    * Construct the MFEM elements array.
    */
   void buildMFEMElements(const int num_elements_in_mesh,
-                         const CubitBlockInfo & block_info,
+                         const mfem::cubit::CubitBlock & block_info,
                          const std::vector<int> & unique_block_ids,
                          const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
                          const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id);
@@ -100,7 +100,7 @@ protected:
    * Construct the boundary array of elements.
    */
   void buildMFEMBoundaryElements(
-      const CubitBlockInfo & block_info,
+      const mfem::cubit::CubitBlock & block_info,
       const std::vector<int> & unique_side_boundary_ids,
       const std::map<int, std::vector<std::vector<unsigned int>>> &
           libmesh_node_ids_for_boundary_id,
@@ -123,7 +123,7 @@ protected:
    * Called internally in constructor if the element is second-order.
    */
   void handleQuadraticFESpace(
-      const CubitBlockInfo & block_info,
+      const mfem::cubit::CubitBlock & block_info,
       const std::vector<int> & unique_block_ids,
       const std::map<int, std::vector<int>> & libmesh_element_ids_for_block_id,
       const std::map<int, std::vector<int>> & libmesh_node_ids_for_element_id,

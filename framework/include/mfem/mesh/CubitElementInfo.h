@@ -2,196 +2,168 @@
 #include <stdint.h>
 #include "MooseError.h"
 
-/**
- * CubitFaceInfo
- *
- * Stores information about a particular element face.
- */
-class CubitFaceInfo
+namespace mfem
 {
-public:
-  CubitFaceInfo() = delete;
-  ~CubitFaceInfo() = default;
+namespace cubit
+{
+enum CubitFaceType
+{
+  FACE_EDGE2,
+  FACE_EDGE3,
+  FACE_TRI3,
+  FACE_TRI6,
+  FACE_QUAD4,
+  FACE_QUAD9 // Order = 2; center node.
+};
 
-  enum CubitFaceType
-  {
-    FACE_EDGE2,
-    FACE_EDGE3,
-    FACE_TRI3,
-    FACE_TRI6,
-    FACE_QUAD4,
-    FACE_QUAD8, // order = 2.
-    FACE_QUAD9  // order = 2. Center node.
-  };
-
-  /**
-   * Default initializer.
-   */
-  CubitFaceInfo(CubitFaceType face_type);
-
-  inline uint8_t order() const { return _order; };
-  inline uint8_t numFaceNodes() const { return _num_face_nodes; };
-  inline uint8_t numFaceCornerNodes() const { return _num_face_corner_nodes; };
-  inline CubitFaceType faceType() const { return _face_type; }
-
-protected:
-  void buildCubitFaceInfo();
-
-private:
-  /**
-   * Type of face.
-   */
-  CubitFaceType _face_type;
-
-  /**
-   * Total number of nodes and number of corner nodes ("vertices").
-   */
-  uint8_t _num_face_nodes;
-  uint8_t _num_face_corner_nodes;
-
-  /**
-   * Order of face.
-   */
-  uint8_t _order;
+enum CubitElementType
+{
+  ELEMENT_TRI3,
+  ELEMENT_TRI6,
+  ELEMENT_QUAD4,
+  ELEMENT_QUAD9,
+  ELEMENT_TET4,
+  ELEMENT_TET10,
+  ELEMENT_HEX8,
+  ELEMENT_HEX27,
+  ELEMENT_WEDGE6,
+  ELEMENT_WEDGE18,
+  ELEMENT_PYRAMID5,
+  ELEMENT_PYRAMID14
 };
 
 /**
- * CubitElementInfo
+ * CubitElement
  *
  * Stores information about a particular element.
  */
-class CubitElementInfo
+class CubitElement
 {
 public:
-  CubitElementInfo() = default;
-  ~CubitElementInfo() = default;
+  /// Default constructor.
+  CubitElement(CubitElementType element_type);
+  CubitElement() = delete;
 
-  CubitElementInfo(int num_nodes_per_element, int dimension = 3);
+  /// Destructor.
+  ~CubitElement() = default;
 
-  enum CubitElementType
-  {
-    ELEMENT_TRI3,
-    ELEMENT_TRI6,
-    ELEMENT_QUAD4,
-    ELEMENT_QUAD9,
-    ELEMENT_TET4,
-    ELEMENT_TET10,
-    ELEMENT_HEX8,
-    ELEMENT_HEX27,
-    ELEMENT_WEDGE6,
-    ELEMENT_WEDGE18,
-    ELEMENT_PYRAMID5,
-    ELEMENT_PYRAMID14
-  };
+  /// Returns the Cubit element type.
+  inline CubitElementType GetElementType() const { return _element_type; }
 
-  inline CubitElementType elementType() const { return _element_type; }
+  /// Returns the face type for a specified face. NB: sides have 1-based indexing.
+  CubitFaceType GetFaceType(size_t side_id = 1) const;
 
-  /**
-   * Returns info for a particular face.
-   */
-  const CubitFaceInfo & face(int iface = 0) const;
+  /// Returns the number of faces.
+  inline size_t GetNumFaces() const { return _num_faces; }
 
-  inline uint8_t numFaces() const { return _num_faces; }
+  /// Returns the number of vertices.
+  inline size_t GetNumVertices() const { return _num_vertices; }
 
-  inline uint8_t numNodes() const { return _num_nodes; }
-  inline uint8_t numCornerNodes() const { return _num_corner_nodes; }
+  /// Returns the number of nodes (vertices + higher-order control points).
+  inline size_t GetNumNodes() const { return _num_nodes; }
 
-  inline uint8_t order() const { return _order; }
-  inline uint8_t dimension() const { return _dimension; }
+  /// Returns the number of vertices for a particular face.
+  size_t GetNumFaceVertices(size_t iface = 1) const;
+
+  /// Returns the order of the element.
+  inline uint8_t GetOrder() const { return _order; }
+
+  /// Creates an MFEM equivalent element using the supplied vertex IDs and block ID.
+  Element * BuildElement(Mesh & mesh, const int * vertex_ids, const int block_id) const;
+
+  /// Creates an MFEM boundary element using the supplied vertex IDs and block ID.
+  Element * BuildBoundaryElement(Mesh & mesh,
+                                 const int iface,
+                                 const int * vertex_ids,
+                                 const int sideset_id) const;
+
+  /// Static method returning the element type for a given number of nodes per element and dimension.
+  static CubitElementType GetElementType(size_t num_nodes, uint8_t dimension = 3);
 
 protected:
-  void buildCubit2DElementInfo(int num_nodes_per_element);
-  void buildCubit3DElementInfo(int num_nodes_per_element);
+  /// Static method which returns the 2D Cubit element type for the number of nodes per element.
+  static CubitElementType Get2DElementType(size_t num_nodes);
 
-  /**
-   * Sets the _face_info vector.
-   */
-  std::vector<CubitFaceInfo> getWedge6FaceInfo() const;
-  std::vector<CubitFaceInfo> getWedge18FaceInfo() const;
+  /// Static method which returns the 3D Cubit element type for the number of nodes per element.
+  static CubitElementType Get3DElementType(size_t num_nodes);
 
-  std::vector<CubitFaceInfo> getPyramid5FaceInfo() const;
-  std::vector<CubitFaceInfo> getPyramid14FaceInfo() const;
+  /// Creates a new MFEM element. Used internally in BuildElement and BuildBoundaryElement.
+  Element *
+  NewElement(Mesh & mesh, Geometry::Type geom, const int * vertices, const int attribute) const;
 
 private:
-  /**
-   * Stores the element type.
-   */
   CubitElementType _element_type;
 
-  /**
-   * NB: first-order elements have only nodes on the "corners". Second-order have
-   * additional nodes between "corner" nodes.
-   */
   uint8_t _order;
-  uint8_t _dimension;
 
-  /**
-   * NB: "corner nodes" refer to MOOSE nodes at the corners of an element. In
-   * MFEM this is referred to as "vertices".
-   */
-  uint8_t _num_nodes;
-  uint8_t _num_corner_nodes;
-
-  /**
-   * Stores info about the face types.
-   */
-  uint8_t _num_faces;
-  std::vector<CubitFaceInfo> _face_info;
+  size_t _num_vertices;
+  size_t _num_faces;
+  size_t _num_nodes;
 };
 
 /**
- * CubitBlockInfo
+ * CubitBlock
  *
  * Stores the information about each block in a mesh. Each block can contain a different
  * element type (although all element types must be of the same order and dimension).
  */
-class CubitBlockInfo
+class CubitBlock
 {
 public:
-  CubitBlockInfo() = default;
-  ~CubitBlockInfo() = default;
+  //  CubitBlock() = delete;
+  CubitBlock(){};
+  ~CubitBlock() = default;
 
-  void setDimension(int dimension);
+  /**
+   * Default initializer.
+   */
+  CubitBlock(int dimension);
+
+  void setDimension(int dimension)
+  {
+    _dimension = dimension;
+    ClearBlockElements();
+  }
 
   /**
    * Returns a constant reference to the element info for a particular block.
    */
-  const CubitElementInfo & blockElement(int block_id) const;
+  const CubitElement & GetBlockElement(int block_id) const;
 
   /**
    * Call to add each block individually.
    */
-  void addBlockElement(int block_id, int num_nodes_per_element);
+  void AddBlockElement(int block_id, CubitElementType element_type);
 
   /**
    * Accessors.
    */
-  uint8_t order() const;
-  inline uint8_t dimension() const { return _dimension; }
+  uint8_t GetOrder() const;
+  inline uint8_t GetDimension() const { return _dimension; }
 
-  inline std::size_t numBlocks() const { return blockIDs().size(); }
-  inline bool hasBlocks() const { return !blockIDs().empty(); }
+  inline size_t GetNumBlocks() const { return BlockIDs().size(); }
+  inline bool HasBlocks() const { return !BlockIDs().empty(); }
 
 protected:
   /**
    * Checks that the order of a new block element matches the order of existing blocks. Called
-   * internally in mehtod "addBlockElement".
+   * internally in method "addBlockElement".
    */
-  void checkElementBlockIsCompatible(const CubitElementInfo & new_block_element) const;
+  void CheckElementBlockIsCompatible(const CubitElement & new_block_element) const;
 
   /**
    * Reset all block elements. Called internally in initializer.
    */
-  void clearBlockElements();
+  void ClearBlockElements();
 
   /**
    * Helper methods.
    */
-  inline const std::set<int> & blockIDs() const { return _block_ids; }
+  inline const std::set<int> & BlockIDs() const { return _block_ids; }
 
-  bool hasBlockID(int block_id) const;
-  bool validBlockID(int block_id) const;
-  bool validDimension(int dimension) const;
+  bool HasBlockID(int block_id) const;
+  bool ValidBlockID(int block_id) const;
+  bool ValidDimension(int dimension) const;
 
 private:
   /**
@@ -202,7 +174,7 @@ private:
   /**
    * Maps from block ID to element.
    */
-  std::map<int, CubitElementInfo> _block_element_for_block_id;
+  std::map<int, CubitElement> _block_element_for_block_id;
 
   /**
    * Dimension and order of block elements.
@@ -210,3 +182,5 @@ private:
   uint8_t _dimension;
   uint8_t _order;
 };
+}
+}

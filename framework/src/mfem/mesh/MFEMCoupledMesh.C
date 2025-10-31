@@ -128,7 +128,10 @@ MFEMCoupledMesh::buildCubitBlockInfo(const std::vector<int> & unique_block_ids)
 
     auto first_element_ptr = *element_range.begin();
 
-    blockInfo().addBlockElement(block_id, first_element_ptr->n_nodes());
+    // Determine the element type:
+    auto element_type = mfem::cubit::CubitElement::GetElementType(first_element_ptr->n_nodes(),
+                                                                  _block_info.GetDimension());
+    blockInfo().AddBlockElement(block_id, element_type);
   }
 }
 
@@ -174,11 +177,11 @@ MFEMCoupledMesh::buildElementAndNodeIDs(const std::vector<int> & unique_block_id
 
       const int element_id = element_ptr->id();
 
-      std::vector<int> element_node_ids(element_info.numNodes());
+      std::vector<int> element_node_ids(element_info.GetNumNodes());
 
       elements_in_block.push_back(element_id);
 
-      for (int node_counter = 0; node_counter < element_info.numNodes(); node_counter++)
+      for (int node_counter = 0; node_counter < element_info.GetNumNodes(); node_counter++)
       {
         element_node_ids[node_counter] = element_ptr->node_id(node_counter);
       }
@@ -213,7 +216,7 @@ MFEMCoupledMesh::buildUniqueCornerNodeIDs(
       auto & node_ids = node_ids_for_element_id.at(element_id);
 
       // Only use the nodes on the edge of the element!
-      for (int knode = 0; knode < block_element.numCornerNodes(); knode++)
+      for (int knode = 0; knode < block_element.GetNumVertices(); knode++)
       {
         unique_corner_node_ids.push_back(node_ids[knode]);
       }
@@ -389,7 +392,7 @@ MFEMCoupledMesh::buildMesh()
 
   // 11.
   // Call the correct initializer.
-  switch (blockInfo().order())
+  switch (blockInfo().GetOrder())
   {
     case 1:
     {
@@ -425,7 +428,7 @@ MFEMCoupledMesh::buildMesh()
     }
     default:
     {
-      mooseError("Unsupported element type of order ", blockInfo().order(), ".");
+      mooseError("Unsupported element type of order ", blockInfo().GetOrder(), ".");
       break;
     }
   }
@@ -452,7 +455,7 @@ MFEMCoupledMesh::convertSerialDofMappingsToParallel(const libMeshMFEMMesh & seri
                                                     const mfem::ParMesh & parallel_mesh)
 {
   // No need to change dof mappings if running on a single processor or if a first order element.
-  if (n_processors() < 2 || blockInfo().order() == 1)
+  if (n_processors() < 2 || blockInfo().GetOrder() == 1)
   {
     return;
   }
