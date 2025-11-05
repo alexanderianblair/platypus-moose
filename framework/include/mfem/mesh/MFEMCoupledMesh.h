@@ -72,7 +72,7 @@ protected:
       const std::vector<int> & unique_side_boundary_ids,
       const std::map<int, std::vector<int>> & element_ids_for_boundary_id,
       const std::map<int, std::vector<int>> & side_ids_for_boundary_id,
-      std::map<int, std::vector<std::vector<unsigned int>>> & node_ids_for_boundary_id);
+      std::map<int, std::vector<std::vector<int>>> & node_ids_for_boundary_id);
 
   /**
    * Builds two maps:
@@ -181,4 +181,7 @@ private:
    */
   std::map<int, int> _libmesh_global_node_id_for_mfem_local_node_id;
   std::map<int, int> _mfem_local_node_id_for_libmesh_global_node_id;
+  std::map<int, std::vector<int>> element_ids_for_boundary_id;
+  std::map<int, std::vector<int>> side_ids_for_boundary_id;
+
 };

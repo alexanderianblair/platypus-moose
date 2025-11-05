@@ -354,21 +354,26 @@ MFEMCoupledMesh::buildMesh()
 
   // 6. Create a map to hold the x, y, z coordinates for each unique node.
   std::map<int, std::array<double, 3>> coordinates_for_node_id;
-
   for (auto node_ptr : getMesh().node_ptr_range())
   {
     auto & node = *node_ptr;
-
     std::array<double, 3> coordinates = {node(0), node(1), node(2)};
-
     coordinates_for_node_id[node.id()] = std::move(coordinates);
   }
-
+  std::vector<double> coordx;
+  std::vector<double> coordy;
+  std::vector<double> coordz;  
+  for (auto node_ptr : getMesh().node_ptr_range())
+  {
+    auto & node = *node_ptr;
+    coordx.push_back(node(0));
+    coordy.push_back(node(1));
+    coordz.push_back(node(2));
+  }
+  
   // 7.
   // element_ids_for_boundary_id stores the ids of each element on each boundary.
   // side_ids_for_boundary_id stores the sides of those elements that are on each boundary.
-  std::map<int, std::vector<int>> element_ids_for_boundary_id;
-  std::map<int, std::vector<int>> side_ids_for_boundary_id;
 
   buildBoundaryInfo(element_ids_for_boundary_id, side_ids_for_boundary_id);
 
@@ -378,8 +383,7 @@ MFEMCoupledMesh::buildMesh()
   // 9.
   // node_ids_for_boundary_id maps from the boundary ID to a vector of vectors containing
   // the nodes of each element on the boundary that correspond to the face of the boundary.
-  std::map<int, std::vector<std::vector<unsigned int>>> node_ids_for_boundary_id;
-
+  std::map<int, std::vector<std::vector<int>>> node_ids_for_boundary_id;
   buildBoundaryNodeIDs(unique_side_boundary_ids,
                        element_ids_for_boundary_id,
                        side_ids_for_boundary_id,
@@ -392,46 +396,67 @@ MFEMCoupledMesh::buildMesh()
 
   // 11.
   // Call the correct initializer.
-  switch (blockInfo().GetOrder())
+  _libmesh_mfem_mesh = std::make_shared<libMeshMFEMMesh>();
+
+  std::map<int, int> cubit_to_mfem_vertex_map;
+  std::vector<int> unique_vertex_ids;
+  std::map<int, int> block_id_for_element_id;
+
+  if (blockInfo().GetOrder() != 1)
   {
-    case 1:
+    mooseError("1st order initializer called for order ", blockInfo().GetOrder(), ".");
+  }
+  //
+  // We need another node ID mapping since MFEM needs contiguous vertex ids.
+  //
+
+  mfem::cubit::BuildUniqueVertexIDs(unique_block_ids, blockInfo(), element_ids_for_block_id,
+                      node_ids_for_element_id, unique_vertex_ids);
+
+  //
+  // unique_vertex_ids now contains a 1-based sorted list of node IDs for each
+  // node used by the mesh. We now create a map by running over the node IDs
+  // and remapping to contiguous 1-based integers.
+  // ie. [1, 4, 5, 8, 9] --> [1, 2, 3, 4, 5].
+  //
+  mfem::cubit::BuildCubitToMFEMVertexMap(unique_vertex_ids, cubit_to_mfem_vertex_map);
+
+  //
+  // Load up the vertices.
+  //
+  _libmesh_mfem_mesh->BuildCubitVertices(unique_vertex_ids, coordx, coordy, coordz);
+  // Create the vertices.
+  // buildMFEMVertices(unique_libmesh_corner_node_ids, coordinates_for_libmesh_node_id);
+
+  //
+  // Now load the elements.
+  //
+  _libmesh_mfem_mesh->BuildCubitElements(nElem(), &blockInfo(), unique_block_ids,
+                    element_ids_for_block_id,
+                    node_ids_for_element_id, cubit_to_mfem_vertex_map);
+
+  for (const auto & key_value : element_ids_for_block_id)
+  {
+    auto block_id = key_value.first;
+    auto & element_ids = key_value.second;
+
+    for (const auto & element_id : element_ids)
     {
-      _libmesh_mfem_mesh = std::make_shared<libMeshMFEMMesh>(nElem(),
-                                              blockInfo(),
-                                              unique_block_ids,
-                                              unique_side_boundary_ids,
-                                              unique_corner_node_ids,
-                                              element_ids_for_block_id,
-                                              node_ids_for_element_id,
-                                              node_ids_for_boundary_id,
-                                              side_ids_for_boundary_id,
-                                              block_ids_for_boundary_id,
-                                              coordinates_for_node_id);
-      break;
-    }
-    case 2:
-    {
-      _libmesh_mfem_mesh = std::make_shared<libMeshMFEMMesh>(nElem(),
-                                              blockInfo(),
-                                              unique_block_ids,
-                                              unique_side_boundary_ids,
-                                              unique_corner_node_ids,
-                                              element_ids_for_block_id,
-                                              node_ids_for_element_id,
-                                              node_ids_for_boundary_id,
-                                              side_ids_for_boundary_id,
-                                              block_ids_for_boundary_id,
-                                              coordinates_for_node_id,
-                                              _libmesh_global_node_id_for_mfem_local_node_id,
-                                              _mfem_local_node_id_for_libmesh_global_node_id);
-      break;
-    }
-    default:
-    {
-      mooseError("Unsupported element type of order ", blockInfo().GetOrder(), ".");
-      break;
+      block_id_for_element_id[element_id] = block_id;
     }
   }
+
+  //
+  // Load up the boundary elements.
+  // for (const int & boundary_id : unique_side_boundary_ids)
+  //   unique_side_boundary_ids_shifted.push_back(boundary_id + 1);
+  _libmesh_mfem_mesh->BuildCubitBoundaries(&blockInfo(), unique_side_boundary_ids,
+                      element_ids_for_boundary_id, node_ids_for_boundary_id, side_ids_for_boundary_id,
+                      block_id_for_element_id,
+                      cubit_to_mfem_vertex_map);
+
+  // Finalize mesh method is needed to fully finish constructing the mesh.
+  _libmesh_mfem_mesh->FinalizeMesh();
 
   auto partitioning = getMeshPartitioning();
 
@@ -530,7 +555,7 @@ MFEMCoupledMesh::buildBoundaryNodeIDs(
     const std::vector<int> & unique_side_boundary_ids,
     const std::map<int, std::vector<int>> & element_ids_for_boundary_id,
     const std::map<int, std::vector<int>> & side_ids_for_boundary_id,
-    std::map<int, std::vector<std::vector<unsigned int>>> & node_ids_for_boundary_id)
+    std::map<int, std::vector<std::vector<int>>> & node_ids_for_boundary_id)
 {
   node_ids_for_boundary_id.clear();
 
@@ -542,7 +567,7 @@ MFEMCoupledMesh::buildBoundaryNodeIDs(
     auto & boundary_element_sides = side_ids_for_boundary_id.at(boundary_id);
 
     // Create vector to store the node ids of all boundary nodes.
-    std::vector<std::vector<unsigned int>> boundary_node_ids(boundary_element_ids.size());
+    std::vector<std::vector<int>> boundary_node_ids(boundary_element_ids.size());
 
     // Iterate over elements on boundary.
     for (int jelement = 0; jelement < (int)boundary_element_ids.size(); jelement++)
@@ -554,8 +579,8 @@ MFEMCoupledMesh::buildBoundaryNodeIDs(
       Elem * element_ptr = elemPtr(boundary_element_global_id);
 
       // Get vector of local node IDs on boundary side of element.
-      auto nodes_of_element_on_side = element_ptr->nodes_on_side(boundary_element_side);
-
+      auto nodes_of_element_on_side_uints = element_ptr->nodes_on_side(boundary_element_side);
+      std::vector<int> nodes_of_element_on_side = {nodes_of_element_on_side_uints.begin(), nodes_of_element_on_side_uints.end()};
       // Replace local IDs with global IDs.
       for (int knode = 0; knode < (int)nodes_of_element_on_side.size(); knode++)
       {

@@ -6,6 +6,96 @@ namespace mfem
 {
 namespace cubit
 {
+
+const int mfem_to_genesis_tet10[10] =
+{
+   // 1,2,3,4,5,6,7,8,9,10
+   1,2,3,4,5,7,8,6,9,10
+};
+
+const int mfem_to_genesis_hex27[27] =
+{
+   // 1,2,3,4,5,6,7,8,9,10,11,
+   1,2,3,4,5,6,7,8,9,10,11,
+
+   // 12,13,14,15,16,17,18,19
+   12,17,18,19,20,13,14,15,
+
+   // 20,21,22,23,24,25,26,27
+   16,22,26,25,27,24,23,21
+};
+
+const int mfem_to_genesis_pyramid14[14] =
+{
+   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+};
+
+const int mfem_to_genesis_wedge18[18] =
+{
+   1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 14, 15, 10, 11, 12, 16, 17, 18
+};
+
+const int mfem_to_genesis_tri6[6]   =
+{
+   1,2,3,4,5,6
+};
+
+const int mfem_to_genesis_quad9[9]  =
+{
+   1,2,3,4,5,6,7,8,9
+};
+
+const int cubit_side_map_tri3[3][2] =
+{
+   {1,2}, // 1
+   {2,3}, // 2
+   {3,1}, // 3
+};
+
+const int cubit_side_map_quad4[4][2] =
+{
+   {1,2}, // 1
+   {2,3}, // 2
+   {3,4}, // 3
+   {4,1}, // 4
+};
+
+const int cubit_side_map_tet4[4][3] =
+{
+   {1,2,4}, // 1
+   {2,3,4}, // 2
+   {1,4,3}, // 3
+   {1,3,2}  // 4
+};
+
+const int cubit_side_map_hex8[6][4] =
+{
+   {1,2,6,5},  // 1 <-- Exodus II side_ids
+   {2,3,7,6},  // 2
+   {3,4,8,7},  // 3
+   {1,5,8,4},  // 4
+   {1,4,3,2},  // 5
+   {5,6,7,8}   // 6
+};
+
+const int cubit_side_map_wedge6[5][4] =
+{
+   {1,2,5,4},  // 1 (Quad4)
+   {2,3,6,5},  // 2
+   {3,1,4,6},  // 3
+   {1,3,2,0},  // 4 (Tri3; NB: 0 is placeholder!)
+   {4,5,6,0}   // 5
+};
+
+const int cubit_side_map_pyramid5[5][4] =
+{
+   {1, 2, 5, 0},  // 1 (Tri3)
+   {2, 3, 5, 0},  // 2
+   {3, 4, 5, 0},  // 3
+   {1, 5, 4, 0},  // 4
+   {1, 4, 3, 2}   // 5 (Quad4)
+};  
+
 enum CubitFaceType
 {
   FACE_EDGE2,

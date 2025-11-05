@@ -53,7 +53,7 @@
   [top]
     type = MFEMScalarDirichletBC
     variable = concentration
-    boundary = '2'
+    boundary = '3'
   []
 []
 

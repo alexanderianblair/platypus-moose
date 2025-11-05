@@ -1,17 +1,22 @@
 [Mesh]
   [./gmg]
     type = GeneratedMeshGenerator
-    dim = 3
+    dim = 2
     nx = 10
     ny = 10
-    nz = 10
   []
   [shift_zero_block]
     type = RenameBlockGenerator
     old_block = '0'
     new_block = '1'
     input = gmg
-  []  
+  []
+  # [shift_zero_boundary]
+  #   type = RenameBoundaryGenerator
+  #   old_boundary = '0'
+  #   new_boundary = '1'
+  #   input = shift_zero_block
+  # []
 []
 
 [Problem]
