@@ -104,7 +104,7 @@ public:
    {
       mfem::Array<int> all_domain_attr(H1.GetMesh()->attributes.Max());
       all_domain_attr = 1;
-
+      H1.GetParMesh()->EnsureNodes();
       auto &mesh_nodes =
          *static_cast<mfem::ParGridFunction *>(H1.GetParMesh()->GetNodes());
       auto &mesh_nodes_fes = *mesh_nodes.ParFESpace();
@@ -234,11 +234,32 @@ DifferentiableEquationSystemProblemOperator::Solve()
   const auto *ir = &mfem::IntRules.Get(pmesh.GetTypicalElementGeometry(),
                                 2 * order + 1);
   DifferentiableEquationSystem<mfem::future::dual<mfem::real_t, mfem::real_t>> eq_sys(H1, *ir); 
+  
 
-  _problem_data.nonlinear_solver->SetSolver(_problem_data.jacobian_solver->getSolver());
-  _problem_data.nonlinear_solver->SetOperator(eq_sys);
-  _problem_data.nonlinear_solver->Mult(_true_rhs, _true_x);
+   mfem::CGSolver krylov(MPI_COMM_WORLD);
+   krylov.SetAbsTol(0.0);
+   krylov.SetRelTol(1e-4);
+   krylov.SetMaxIter(500);
+   krylov.SetPrintLevel(2);
 
+   _problem_data.nonlinear_solver->SetOperator(eq_sys);
+   _problem_data.nonlinear_solver->SetAbsTol(0.0);
+   _problem_data.nonlinear_solver->SetRelTol(1e-6);
+   _problem_data.nonlinear_solver->SetMaxIter(10);
+   _problem_data.nonlinear_solver->SetSolver(krylov);
+   _problem_data.nonlinear_solver->SetPrintLevel(1);
+
+   mfem::Vector X(H1.GetTrueVSize());
+   mfem::Vector zero(H1.GetTrueVSize());
+
+   // H1.GetRestrictionMatrix()->Mult(u, X);
+   // _problem_data.nonlinear_solver->Mult(zero, X);
+   // H1.GetProlongationMatrix()->Mult(X, u);
+
+//   _problem_data.nonlinear_solver->SetSolver(_problem_data.jacobian_solver->getSolver());
+//   _problem_data.nonlinear_solver->SetOperator(eq_sys);
+  _problem_data.nonlinear_solver->Mult(zero, X);
+//   _problem_data.nonlinear_solver->Mult(_true_rhs, _true_x);
 }
 
 } // namespace Moose::MFEM

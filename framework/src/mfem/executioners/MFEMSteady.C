@@ -12,6 +12,7 @@
 #include "MFEMSteady.h"
 #include "MFEMProblem.h"
 #include "EquationSystemProblemOperator.h"
+#include "DifferentiableEquationSystemProblemOperator.h"
 
 registerMooseObject("MooseApp", MFEMSteady);
 
@@ -22,6 +23,7 @@ MFEMSteady::validParams()
   params += Executioner::validParams();
   params.addClassDescription("Executioner for steady state MFEM problems.");
   params.addParam<Real>("time", 0.0, "System time");
+  params.addParam<bool>("use_ad", false, "Boolean controlling AD usage");
   return params;
 }
 
@@ -33,15 +35,25 @@ MFEMSteady::MFEMSteady(const InputParameters & params)
     _system_time(getParam<Real>("time")),
     _time_step(_mfem_problem.timeStep()),
     _time([this]() -> Real & { return this->_mfem_problem.time() = this->_system_time; }()),
-    _last_solve_converged(false)
+    _last_solve_converged(false),
+    _use_ad(getParam<bool>("use_ad"))
 {
   // If no ProblemOperators have been added by the user, add a default
   if (getProblemOperators().empty())
   {
-    _mfem_problem_data.eqn_system = std::make_shared<Moose::MFEM::EquationSystem>();
-    auto problem_operator =
-        std::make_shared<Moose::MFEM::EquationSystemProblemOperator>(_mfem_problem);
-    addProblemOperator(std::move(problem_operator));
+    if (_use_ad)
+    {
+      auto problem_operator =
+          std::make_shared<Moose::MFEM::DifferentiableEquationSystemProblemOperator>(_mfem_problem);
+      addProblemOperator(std::move(problem_operator));
+    }
+    else 
+    {
+      _mfem_problem_data.eqn_system = std::make_shared<Moose::MFEM::EquationSystem>();
+      auto problem_operator =
+          std::make_shared<Moose::MFEM::EquationSystemProblemOperator>(_mfem_problem);
+      addProblemOperator(std::move(problem_operator));
+    }
   }
 }
 
@@ -52,7 +64,8 @@ MFEMSteady::init()
   _mfem_problem.initialSetup();
 
   // Set up initial conditions
-  _mfem_problem_data.eqn_system->Init(
+  if (!_use_ad)
+    _mfem_problem_data.eqn_system->Init(
       _mfem_problem_data.gridfunctions,
       getParam<MooseEnum>("assembly_level").getEnum<mfem::AssemblyLevel>());
 
