@@ -12,6 +12,7 @@
 #pragma once
 #include "ProblemOperator.h"
 #include "EquationSystemInterface.h"
+#include "DifferentiableEquationSystem.h"
 
 namespace Moose::MFEM
 {
@@ -20,13 +21,9 @@ namespace Moose::MFEM
 class DifferentiableEquationSystemProblemOperator : public ProblemOperator
 {
 public:
-  DifferentiableEquationSystemProblemOperator(MFEMProblem & problem)
-    : ProblemOperator(problem)
-  {
-  }
+  DifferentiableEquationSystemProblemOperator(MFEMProblem & problem) : ProblemOperator(problem) {}
 
   void SetGridFunctions() override;
-  void Init(mfem::BlockVector & X) override;
   virtual void Solve() override;
 
 };

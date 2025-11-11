@@ -18,7 +18,9 @@
 [Functions]
   [ic_function]
     type = ParsedFunction
-    expression = '0.01*sin(pi*x)'
+    expression = 'log(cos(a * pi * (x-x0)) / cos(a * pi * (y-y0))) / a'
+    symbol_names = 'a x0 y0'
+    symbol_values = '1e-2 0. 0.'
   []
 []
 
