@@ -15,6 +15,21 @@
   []
 []
 
+[Functions]
+  [ic_function]
+    type = ParsedFunction
+    expression = '0.01*sin(x)'
+  []
+[]
+
+[ICs]
+  [ic]
+    type = MFEMScalarIC
+    variable = concentration
+    coefficient = ic_function
+  []
+[]
+
 [Variables]
   [concentration]
     type = MFEMVariable
@@ -22,17 +37,12 @@
   []
 []
 
-[Preconditioner]
-  [boomeramg]
-    type = MFEMHypreBoomerAMG
-  []
-[]
-
 [Solver]
-  type = MFEMHypreGMRES
-  preconditioner = boomeramg
-  l_tol = 1e-16
-  l_max_its = 1000
+  type = MFEMCGSolver
+  l_tol = 1e-4
+  l_abs_tol = 0.0
+  l_max_its = 500
+  print_level = 2
 []
 
 [Executioner]
@@ -44,7 +54,7 @@
 [Outputs]
   [ParaViewDataCollection]
     type = MFEMParaViewDataCollection
-    file_base = OutputData/Diffusion
+    file_base = OutputData/ADDiffusion
     vtk_format = ASCII
   []
 []

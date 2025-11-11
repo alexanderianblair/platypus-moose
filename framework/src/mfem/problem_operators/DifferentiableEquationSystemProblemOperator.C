@@ -213,6 +213,8 @@ private:
 void
 DifferentiableEquationSystemProblemOperator::SetGridFunctions()
 {
+  _test_var_names.push_back(std::string("concentration"));
+  _trial_var_names.push_back(std::string("concentration"));
   ProblemOperator::SetGridFunctions();
 }
 
@@ -225,41 +227,23 @@ DifferentiableEquationSystemProblemOperator::Init(mfem::BlockVector & X)
 void
 DifferentiableEquationSystemProblemOperator::Solve()
 {
-  // 7. Define a parallel finite element space on the parallel mesh
-  auto & pmesh = _problem.mesh().getMFEMParMesh();
-  int order = 1;
-  int dim = pmesh.Dimension();
-  mfem::H1_FECollection fec(order, dim);
-  mfem::ParFiniteElementSpace H1(&pmesh, &fec);
-  const auto *ir = &mfem::IntRules.Get(pmesh.GetTypicalElementGeometry(),
-                                2 * order + 1);
-  DifferentiableEquationSystem<mfem::future::dual<mfem::real_t, mfem::real_t>> eq_sys(H1, *ir); 
-  
-
-   mfem::CGSolver krylov(MPI_COMM_WORLD);
-   krylov.SetAbsTol(0.0);
-   krylov.SetRelTol(1e-4);
-   krylov.SetMaxIter(500);
-   krylov.SetPrintLevel(2);
+   // 7. Define a parallel finite element space on the parallel mesh
+   auto & pmesh = _problem.mesh().getMFEMParMesh();
+   int order = 1;
+   mfem::ParFiniteElementSpace & H1 = *_problem_data.gridfunctions.Get("concentration")->ParFESpace();
+   const auto *ir = &mfem::IntRules.Get(pmesh.GetTypicalElementGeometry(),
+                                 2 * order + 1);
+   DifferentiableEquationSystem<mfem::future::dual<mfem::real_t, mfem::real_t>> eq_sys(H1, *ir); 
 
    _problem_data.nonlinear_solver->SetOperator(eq_sys);
    _problem_data.nonlinear_solver->SetAbsTol(0.0);
    _problem_data.nonlinear_solver->SetRelTol(1e-6);
    _problem_data.nonlinear_solver->SetMaxIter(10);
-   _problem_data.nonlinear_solver->SetSolver(krylov);
+   _problem_data.nonlinear_solver->SetSolver(_problem_data.jacobian_solver->getSolver());
    _problem_data.nonlinear_solver->SetPrintLevel(1);
 
-   mfem::Vector X(H1.GetTrueVSize());
-   mfem::Vector zero(H1.GetTrueVSize());
-
-   // H1.GetRestrictionMatrix()->Mult(u, X);
-   // _problem_data.nonlinear_solver->Mult(zero, X);
-   // H1.GetProlongationMatrix()->Mult(X, u);
-
-//   _problem_data.nonlinear_solver->SetSolver(_problem_data.jacobian_solver->getSolver());
-//   _problem_data.nonlinear_solver->SetOperator(eq_sys);
-  _problem_data.nonlinear_solver->Mult(zero, X);
-//   _problem_data.nonlinear_solver->Mult(_true_rhs, _true_x);
+   _true_rhs = 0.0;
+   _problem_data.nonlinear_solver->Mult(_true_rhs, _true_x);
 }
 
 } // namespace Moose::MFEM
