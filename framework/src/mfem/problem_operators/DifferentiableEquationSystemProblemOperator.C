@@ -244,6 +244,7 @@ DifferentiableEquationSystemProblemOperator::Solve()
 
    _true_rhs = 0.0;
    _problem_data.nonlinear_solver->Mult(_true_rhs, _true_x);
+   _trial_variables.at(0)->SetFromTrueDofs(_true_x);
 }
 
 } // namespace Moose::MFEM

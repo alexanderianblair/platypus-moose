@@ -18,7 +18,7 @@
 [Functions]
   [ic_function]
     type = ParsedFunction
-    expression = '0.01*sin(x)'
+    expression = '0.01*sin(pi*x)'
   []
 []
 
@@ -28,6 +28,11 @@
     variable = concentration
     coefficient = ic_function
   []
+  [ic_bnd]
+    type = MFEMScalarBoundaryIC
+    variable = concentration
+    coefficient = ic_function
+  []  
 []
 
 [Variables]
