@@ -125,9 +125,6 @@ EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions, mfem::AssemblyL
 {
   _assembly_level = assembly_level;
 
-  // Extract which coupled variables are to be trivially eliminated and which are trial variables
-  //  SetTrialVariableNames();
-
   for (auto & test_var_name : _test_var_names)
   {
     if (!gridfunctions.Has(test_var_name))
@@ -145,7 +142,7 @@ EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions, mfem::AssemblyL
   }
 
   // Extract which coupled variables are to be trivially eliminated and which are trial variables
-    SetTrialVariableNames();
+  SetTrialVariableNames();
 
   // Store pointers to FESpaces of all coupled variables
   for (auto & coupled_var_name : _coupled_var_names)
