@@ -3,13 +3,12 @@
 #where E_drive os the complex e_field (-grad V) tansfereed from the coil. 
 # https://doc.comsol.com/6.1/docserver/#!/com.comsol.help.acdc/acdc_ug_theory.05.51.html
 
-freq = 50000 #50kHz
-angfreq = 2*3.141592653589793*${freq}
+!include drive_frequency.i
 
 # Permittivity of free space
 epsilon0 = 8.8541878176e-12
 
-# Conductivities 
+# Conductivities
 sigma_vac = 0.0
 sigma_coil = 5.8e6
 sigma_target = 3.5e6
@@ -17,14 +16,14 @@ sigma_target = 3.5e6
 # Magnetic reluctivity of free space (1/mu0)
 nu0 = '${fparse (1.0e7)/(4*pi)}'
 
-[Mesh]
-    type = MFEMMesh
-    file = vac_oval_coil_solid_target_coarse.e
-[]
-
 [Problem]
     type = MFEMProblem
     numeric_type = complex
+[]
+
+[Mesh]
+    type = MFEMMesh
+    file = vac_oval_coil_solid_target_coarse.e
 []
 
 [SubMeshes]
@@ -57,19 +56,19 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 []
 
 [AuxVariables]
-    [e_field] #complex (supposingly transferring both components)
+    [source_a_field] #complex (supposingly transferring both components)
         type = MFEMComplexVariable
         fespace = HCurlFESpace
     []
-    [coil_complement_e_field] #e field defined on submesh representing domain excluding coil volume but including coil surface
+    [coil_complement_source_a_field] #e field defined on submesh representing domain excluding coil volume but including coil surface
         type = MFEMComplexVariable
         fespace = SubmeshHCurlFESpace
     []
 []
 
 [Functions]
-    # j * \omega * \sigma * A represented as (massCoef + i*loss_coef)*A 
-    # with massCoef = 0, lossCoef = \omega * sigma
+    # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
+    # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
     [mass_coef]
         type = ParsedFunction
         expression = -${epsilon0}*${angfreq}^2
@@ -86,7 +85,7 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
         type = ParsedFunction
         expression = ${angfreq}*${sigma_target}
     []
-    [exact_a_field]
+    [zero_vector]
         type = ParsedVectorFunction
         expression_x = '0'
         expression_y = '0'
@@ -95,13 +94,13 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 []
 [BCs]
     # A = iE/w on coil surface
-    [coil_surface_current] 
+    [coil_surface_a_field] 
         type = MFEMComplexVectorTangentialDirichletBC
         variable = a_field
-        vector_coefficient_real = coil_complement_e_field_imag  # = +E_imag/omega
-        vector_coefficient_imag = coil_complement_e_field_real # = -E_real/omega
+        vector_coefficient_real = coil_complement_source_a_field_imag
+        vector_coefficient_imag = coil_complement_source_a_field_real
         boundary = 'coil_surface'
-    []    
+    []
 []
 
 [FunctorMaterials]
@@ -167,7 +166,7 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 [MultiApps]
   [coil_laplace]
     type = FullSolveMultiApp
-    input_files = laplace_coil_complex.i
+    input_files = SubMeshLaplaceSolve.i
     execute_on = INITIAL
     clone_parent_mesh = true
   []
@@ -176,14 +175,14 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 [Transfers]
   [from_coil]
     type = MultiAppMFEMCopyTransfer
-    source_variable = e_field
-    variable = e_field
+    source_variable = source_a_field
+    variable = source_a_field
     from_multi_app = coil_laplace
   []
   [submesh_transfer_to_coil_complement]
     type = MFEMSubMeshComplexTransfer
-    from_variable = e_field
-    to_variable = coil_complement_e_field
+    from_variable = source_a_field
+    to_variable = coil_complement_source_a_field
     execute_on = INITIAL
     execution_order_group = 2
   []  
@@ -192,7 +191,7 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 [Outputs]
   [ParaViewDataCollection]
     type = MFEMParaViewDataCollection
-    file_base = HIVE/submesh_Aform_frequency_domain
+    file_base = HIVE/Submesh_Aform_frequency_domain
     vtk_format = ASCII
     submesh = coil_complement
   []
