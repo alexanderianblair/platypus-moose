@@ -2,6 +2,7 @@
 
 conductor_domains = 'Brick'
 vacuum_domain = 'Vacuum'
+vacuum_resistivity = 1.0 # S/m
 vacuum_permeability = '${fparse (4*pi*1e-7)}' # T m/A
 conductor_conductivity = 2.538e7 # S/m 
 conductor_resistivity = '${fparse 1.0/(conductor_conductivity)}'
@@ -38,10 +39,6 @@ tangential_induced_h_boundaries = '1 2 5 6' # H x n = 0, no field from current i
 []
 
 [AuxVariables]
-  [h_field]
-    type = MFEMVariable
-    fespace = HCurlFESpace
-  []
   [external_h_field]
     type = MFEMVariable
     fespace = HCurlFESpace
@@ -53,16 +50,10 @@ tangential_induced_h_boundaries = '1 2 5 6' # H x n = 0, no field from current i
 []
 
 [AuxKernels]
-  [update_h_field]
-    type = MFEMSumAux
-    variable = h_field
-    source_variables = 'induced_h_field external_h_field'
-    execute_on = TIMESTEP_END
-  []
   [update_j_field]
     type = MFEMCurlAux
     variable = j_field
-    source = h_field
+    source = induced_h_field
     scale_factor = 1.0
     execute_on = TIMESTEP_END
     execution_order_group = 2
@@ -94,7 +85,7 @@ tangential_induced_h_boundaries = '1 2 5 6' # H x n = 0, no field from current i
   [Vacuum]
     type = MFEMGenericFunctorMaterial
     prop_names = 'resistivity permeability'
-    prop_values = '1.0 ${vacuum_permeability}'
+    prop_values = '${vacuum_resistivity} ${vacuum_permeability}'
     block = ${vacuum_domain}
   []
 []
