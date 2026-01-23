@@ -235,6 +235,10 @@ MFEMProblem::addGridFunction(const std::string & var_type,
           var_name + "_real", &mfem_variable.getComplexGridFunction()->real());
       getCoefficients().declareScalar<mfem::GridFunctionCoefficient>(
           var_name + "_imag", &mfem_variable.getComplexGridFunction()->imag());
+      getCoefficients().declareVector<mfem::GradientGridFunctionCoefficient>(
+          var_name + "_grad_real", &mfem_variable.getComplexGridFunction()->real());
+      getCoefficients().declareVector<mfem::GradientGridFunctionCoefficient>(
+          var_name + "_grad_imag", &mfem_variable.getComplexGridFunction()->imag());                    
     }
     else
     {
@@ -249,8 +253,12 @@ MFEMProblem::addGridFunction(const std::string & var_type,
     MFEMVariable & mfem_variable = getUserObject<MFEMVariable>(var_name);
     getProblemData().gridfunctions.Register(var_name, mfem_variable.getGridFunction());
     if (mfem_variable.getFESpace().isScalar())
+    {
       getCoefficients().declareScalar<mfem::GridFunctionCoefficient>(
           var_name, mfem_variable.getGridFunction().get());
+      getCoefficients().declareVector<mfem::GradientGridFunctionCoefficient>(
+          var_name + "_grad", mfem_variable.getGridFunction().get());
+    }
     else
       getCoefficients().declareVector<mfem::VectorGridFunctionCoefficient>(
           var_name, mfem_variable.getGridFunction().get());
