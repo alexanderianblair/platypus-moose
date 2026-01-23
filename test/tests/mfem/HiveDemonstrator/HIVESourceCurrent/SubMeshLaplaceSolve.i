@@ -2,12 +2,9 @@
 # Solving div E = 0 for A_coil
 # E = -iwA = -grad V
 
-# Source frequency and potential difference
-!include drive_frequency.i
+# Coil conductivity and potential difference
+!include source_coil_parameters.i
 potential_difference = 100 # V
-
-# Conductivity of coil
-sigma_coil = 5.8e6 # S/m
 
 [Mesh]
   type = MFEMMesh
@@ -64,11 +61,11 @@ sigma_coil = 5.8e6 # S/m
 []
 
 [AuxVariables]
-  [source_a_field] # = i grad V / omega
+  [source_e_field] # =  -grad V
     type = MFEMComplexVariable
     fespace = HCurlFESpace
   []
-  [coil_a_field]
+  [coil_e_field]
     type = MFEMComplexVariable
     fespace = SubmeshHCurlFESpace
   []  
@@ -77,9 +74,9 @@ sigma_coil = 5.8e6 # S/m
 [AuxKernels]
   [grad_v]
     type = MFEMComplexGradAux
-    variable = coil_a_field
+    variable = coil_e_field
     source = coil_electric_potential
-    scale_factor_real = '${fparse 1.0/angfreq}'
+    scale_factor_real = -1.0
     execute_on = TIMESTEP_END
   []
 []
@@ -137,8 +134,8 @@ sigma_coil = 5.8e6 # S/m
 [Transfers]
   [submesh_transfer_from_coil]
     type = MFEMSubMeshComplexTransfer
-    from_variable = coil_a_field
-    to_variable = source_a_field
+    from_variable = coil_e_field
+    to_variable = source_e_field
     execute_on = TIMESTEP_END
     execution_order_group = 2
   []
