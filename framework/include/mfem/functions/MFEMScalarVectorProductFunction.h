@@ -11,14 +11,14 @@
 
 #pragma once
 
-#include "MooseParsedFunction.h"
+#include "Function.h"
 #include "MFEMProblem.h"
 
 /**
  * Scalar, parsed function of position, time, and any number of scalar problem coefficients,
  * including any scalar variables, postprocessors, material properties or functions
  */
-class MFEMScalarVectorProductFunction : public MooseParsedFunction
+class MFEMScalarVectorProductFunction : public Function
 {
 public:
   static InputParameters validParams();
