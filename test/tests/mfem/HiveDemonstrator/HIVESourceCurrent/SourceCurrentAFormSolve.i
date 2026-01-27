@@ -142,13 +142,11 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
   []
   [source_current_density_coef_real]
     type = MFEMScalarVectorProductFunction
-    expression = ''
     coefficient = loss_coef_coil
     vector_coefficient = source_electric_potential_grad_real
   []
   [source_current_density_coef_imag]
     type = MFEMScalarVectorProductFunction
-    expression = ''
     coefficient = loss_coef_coil
     vector_coefficient = source_electric_potential_grad_imag
   []

@@ -495,7 +495,7 @@ MFEMProblem::addFunction(const std::string & type,
           }
         });
   }
-  else if ("MFEMParsedFunction" != type)
+  else if ("MFEM" != type.substr(0, 4))
   {
     mooseWarning("Could not identify whether function ",
                  type,

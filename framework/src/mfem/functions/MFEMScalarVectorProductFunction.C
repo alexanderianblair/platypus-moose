@@ -16,7 +16,7 @@ registerMooseObject("MooseApp", MFEMScalarVectorProductFunction);
 InputParameters
 MFEMScalarVectorProductFunction::validParams()
 {
-  InputParameters params = MooseParsedFunction::validParams();
+  InputParameters params = Function::validParams();
   params.addClassDescription("Parses scalar function of position, time and scalar "
                              "problem coefficients (including scalar variables).");
   params.addRequiredParam<MFEMScalarCoefficientName>("coefficient",
@@ -27,8 +27,8 @@ MFEMScalarVectorProductFunction::validParams()
 }
 
 MFEMScalarVectorProductFunction::MFEMScalarVectorProductFunction(const InputParameters & parameters)
-  : MooseParsedFunction(parameters),
-    _mfem_problem(static_cast<MFEMProblem &>(_pfb_feproblem)),
+  : Function(parameters),
+    _mfem_problem(static_cast<MFEMProblem &>(*getCheckedPointerParam<FEProblemBase *>("_fe_problem_base"))),
     _scalar_coefficient_name(getParam<MFEMScalarCoefficientName>("coefficient")),
     _vector_coefficient_name(getParam<MFEMVectorCoefficientName>("vector_coefficient")),
     _scaled_vector_coef(_mfem_problem.getCoefficients().declareVector<mfem::ScalarVectorProductCoefficient>(name(), _dummy_scalar_coefficient, _dummy_vector_coefficient))
