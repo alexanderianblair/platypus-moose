@@ -71,7 +71,7 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
   [e_field] # total complex electric field E = E_ind + E_ext
     type = MFEMComplexVariable
     fespace = HCurlFESpace
-  []    
+  []
   [b_field] # complex magnetic flux density
     type = MFEMComplexVariable
     fespace = HDivFESpace
@@ -140,6 +140,18 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     type = ParsedFunction
     expression = ${angfreq}*${sigma_target}
   []
+  [source_current_density_coef_real]
+    type = MFEMScalarVectorProductFunction
+    expression = ''
+    coefficient = loss_coef_coil
+    vector_coefficient = source_electric_potential_grad_real
+  []
+  [source_current_density_coef_imag]
+    type = MFEMScalarVectorProductFunction
+    expression = ''
+    coefficient = loss_coef_coil
+    vector_coefficient = source_electric_potential_grad_imag
+  []
 []
 [BCs]
   # Tangential component of induced electric field 0 on boundary, so A = iE/w =0 
@@ -204,12 +216,12 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     variable = a_field
     [RealComponent]
       type = MFEMVectorFEDomainLFKernel
-      vector_coefficient = source_electric_potential_grad_real # = J_ext_real
+      vector_coefficient = source_current_density_coef_real # = J_ext_real
       block = 'coil'
     []
     [ImagComponent]
       type = MFEMVectorFEDomainLFKernel
-      vector_coefficient = source_electric_potential_grad_imag # = J_ext_imag
+      vector_coefficient = source_current_density_coef_imag # = J_ext_imag
       block = 'coil'
     []     
   []    

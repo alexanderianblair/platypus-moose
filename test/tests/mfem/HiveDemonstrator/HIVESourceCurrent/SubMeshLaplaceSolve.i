@@ -4,7 +4,7 @@
 
 # Coil conductivity and potential difference
 !include source_coil_parameters.i
-potential_difference = 100 # V
+potential_difference = 1.0 # V
 
 [Mesh]
   type = MFEMMesh
