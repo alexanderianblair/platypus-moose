@@ -13,9 +13,6 @@ ComplexEquationSystem::Init(GridFunctions & gridfunctions,
 {
   _assembly_level = assembly_level;
 
-  if (gridfunctions.size())
-    mooseError("Mixing real and complex variables is currently not supported.");
-
   for (auto & test_var_name : _test_var_names)
   {
     if (!cmplx_gridfunctions.Has(test_var_name))
@@ -23,7 +20,7 @@ ComplexEquationSystem::Init(GridFunctions & gridfunctions,
       mooseError("MFEM complex variable ",
                  test_var_name,
                  " requested by equation system during initialization was "
-                 "not found in gridfunctions");
+                 "not found in complex gridfunctions");
     }
     // Store pointers to test FESpaces
     _test_pfespaces.push_back(cmplx_gridfunctions.Get(test_var_name)->ParFESpace());

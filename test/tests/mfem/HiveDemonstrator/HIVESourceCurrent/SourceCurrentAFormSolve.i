@@ -76,6 +76,18 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     type = MFEMComplexVariable
     fespace = HDivFESpace
   []
+  [q_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []
+  [q1_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []
+  [q2_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []      
   [q_target_field] # Joule heating on target
     type = MFEMComplexVariable
     fespace = L2FESpace
@@ -100,25 +112,32 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     scale_factors_real = '1.0 0.0'
     scale_factors_imag = '0.0 -${angfreq}'
     execute_on = TIMESTEP_END
-  []  
-  [joule_heat_target]
-    type = MFEMComplexInnerProductAux
-    variable = q_target_field
-    first_source_vec = e_field
-    second_source_vec = e_field
-    scale_factor_real = '${sigma_target}'
+  []
+  [joule_heat_1]
+    type = MFEMInnerProductAux
+    variable = q1_field
+    first_source_vec = e_field_real
+    second_source_vec = e_field_real
+    coefficient = sigma
     execute_on = TIMESTEP_END
     execution_order_group = 2
   []
-  [joule_heat_coil]
-    type = MFEMComplexInnerProductAux
-    variable = q_coil_field
-    first_source_vec = e_field
-    second_source_vec = e_field
-    scale_factor_real = '${sigma_coil}'
+  [joule_heat_2]
+    type = MFEMInnerProductAux
+    variable = q2_field
+    first_source_vec = e_field_imag
+    second_source_vec = e_field_imag
+    coefficient = sigma
     execute_on = TIMESTEP_END
     execution_order_group = 2
-  []  
+  []
+  [joule_heat]
+    type = MFEMSumAux
+    variable = q_field
+    source_variables = 'q1_field q2_field'
+    execute_on = TIMESTEP_END
+    execution_order_group = 3
+  [] 
 []
 
 [Functions]
