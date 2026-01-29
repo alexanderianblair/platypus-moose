@@ -159,21 +159,25 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     type = ParsedFunction
     expression = ${angfreq}*${sigma_target}
   []
+  [sigma_coil]
+    type = ParsedFunction
+    expression = ${sigma_coil}
+  []  
   [source_current_density_coef_real]
     type = MFEMScalarVectorProductFunction
-    coefficient = loss_coef_coil
+    coefficient = sigma_coil
     vector_coefficient = source_electric_potential_grad_real
   []
   [source_current_density_coef_imag]
     type = MFEMScalarVectorProductFunction
-    coefficient = loss_coef_coil
+    coefficient = sigma_coil
     vector_coefficient = source_electric_potential_grad_imag
   []
 []
 [BCs]
   # Tangential component of induced electric field 0 on boundary, so A = iE/w =0 
   [exterior_a_field]
-    type = MFEMComplexVectorTangentialDirichletBC
+    type = MFEMComplexVectorTangentialDirichletBC # Enforces J normal to surface, B tangential to surface
     variable = a_field
     boundary = '1 2 3 4'
   []
@@ -190,7 +194,7 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
   [coil]
     type = MFEMGenericFunctorMaterial
     prop_names = 'massCoef lossCoef sigma nu'
-    prop_values = 'mass_coef loss_coef_coil ${sigma_coil} ${nu0}'
+    prop_values = 'mass_coef loss_coef_coil sigma_coil ${nu0}'
     block = 'coil'
   []
   [target]
@@ -276,6 +280,18 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     from_multi_app = coil_laplace
     execute_on = INITIAL
   []  
+[]
+
+[Postprocessors]
+  [CoilPower]
+    type = MFEMComplexVectorPeriodAveragedPostprocessor
+    coefficient = ${sigma_coil}
+    dual_variable = e_field
+    primal_variable = source_e_field
+    execution_order_group = 5
+    block = 'coil'
+    execute_on = TIMESTEP_END
+  []
 []
 
 [Outputs]
