@@ -35,6 +35,11 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     fec_type = H1
     fec_order = FIRST
   []
+  [VectorH1FESpace]
+    type = MFEMVectorFESpace
+    fec_type = H1
+    fec_order = FIRST
+  []
   [HCurlFESpace]
     type = MFEMVectorFESpace
     fec_type = ND
@@ -60,6 +65,19 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
 []
 
 [AuxVariables]
+  [h1_b_projection_field]
+    type = MFEMComplexVariable
+    fespace = VectorH1FESpace
+  []  
+  [h1_e_projection_field]
+    type = MFEMComplexVariable
+    fespace = VectorH1FESpace
+  []  
+  [h1_a_projection_field]
+    type = MFEMComplexVariable
+    fespace = VectorH1FESpace
+  []
+
   [source_electric_potential] #complex (supposingly transferring both components)
     type = MFEMComplexVariable
     fespace = H1FESpace
@@ -137,7 +155,32 @@ nu0 = '${fparse (1.0e7)/(4*pi)}'
     source_variables = 'q1_field q2_field'
     execute_on = TIMESTEP_END
     execution_order_group = 3
-  [] 
+  []
+
+  [h1_b_proj]
+    type = MFEMComplexVectorProjectionAux
+    variable = h1_b_projection_field
+    vector_coefficient_real = b_field_real
+    vector_coefficient_imag = b_field_imag
+    execute_on = TIMESTEP_END
+    execution_order_group = 3
+  []
+  [h1_e_proj]
+    type = MFEMComplexVectorProjectionAux
+    variable = h1_e_projection_field
+    vector_coefficient_real = e_field_real
+    vector_coefficient_imag = e_field_imag
+    execute_on = TIMESTEP_END
+    execution_order_group = 3
+  []
+  [h1_a_proj]
+    type = MFEMComplexVectorProjectionAux
+    variable = h1_a_projection_field
+    vector_coefficient_real = a_field_real
+    vector_coefficient_imag = a_field_imag
+    execute_on = TIMESTEP_END
+    execution_order_group = 3
+  []       
 []
 
 [Functions]

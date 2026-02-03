@@ -8,7 +8,7 @@
 # 1.0 V : 2 * 1.422698e+04 A
 # potential_difference = 1.0 # V for basis function of curl-free topological contribution
 # potential_difference = 0.074552 # V, 2121.3 A (peak) = 1500 A (RMS)
-potential_difference = 1e-3 # V testing
+potential_difference = 5e-4 # V testing
 # Terminal surface area = 0.000024 m^2 = 2.4e-5 m^2 for vac_oval_coil_solid_target_coarse.e coil
 
 # Coil peak average current density = 2121.3 A /0.000024 m^2 = 8.8387e7 A/m^2
