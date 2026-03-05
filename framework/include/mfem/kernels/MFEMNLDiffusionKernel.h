@@ -25,7 +25,7 @@ public:
   MFEMNLDiffusionKernel(const InputParameters & parameters);
 
   virtual mfem::BilinearFormIntegrator * createBFIntegrator() override;
-  virtual mfem::LinearFormIntegrator * createNLAIntegrator() override;
+  virtual mfem::NonlinearFormIntegrator * createNLAIntegrator() override;
 
 protected:
   mfem::Coefficient & _coef;

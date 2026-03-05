@@ -138,7 +138,7 @@ protected:
 
   void ApplyDomainNLAFIntegrators(
       const std::string & test_var_name,
-      std::shared_ptr<mfem::ParLinearForm> form,
+      std::shared_ptr<mfem::ParNonlinearForm> form,
       NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map);
 
   template <class FormType>
@@ -158,7 +158,7 @@ protected:
 
   void ApplyBoundaryNLAFIntegrators(
       const std::string & test_var_name,
-      std::shared_ptr<mfem::ParLinearForm> form,
+      std::shared_ptr<mfem::ParNonlinearForm> form,
       NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
           integrated_bc_map);
 
@@ -184,7 +184,7 @@ protected:
   NamedFieldsMap<mfem::ParBilinearForm> _blfs;
   NamedFieldsMap<mfem::ParLinearForm> _lfs;
   NamedFieldsMap<mfem::ParNonlinearForm> _nlfs;
-  NamedFieldsMap<mfem::ParLinearForm> _nlAs;
+  // NamedFieldsMap<mfem::ParLinearForm> _nlAs;
   NamedFieldsMap<NamedFieldsMap<mfem::ParMixedBilinearForm>> _mblfs; // named according to trial var
 
   /// Gridfunctions holding essential constraints from Dirichlet BCs
@@ -274,7 +274,7 @@ EquationSystem::ApplyDomainLFIntegrators(
 inline void
 EquationSystem::ApplyDomainNLAFIntegrators(
     const std::string & test_var_name,
-    std::shared_ptr<mfem::ParLinearForm> form,
+    std::shared_ptr<mfem::ParNonlinearForm> form,
     NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map)
 {
   if (kernels_map.Has(test_var_name) && kernels_map.Get(test_var_name)->Has(test_var_name))
@@ -282,7 +282,7 @@ EquationSystem::ApplyDomainNLAFIntegrators(
     auto kernels = kernels_map.GetRef(test_var_name).GetRef(test_var_name);
     for (auto & kernel : kernels)
     {
-      mfem::LinearFormIntegrator * integ = kernel->createNLAIntegrator();
+      mfem::NonlinearFormIntegrator * integ = kernel->createNLAIntegrator();
       if (integ)
       {
         _non_linear = true;
@@ -352,7 +352,7 @@ EquationSystem::ApplyBoundaryLFIntegrators(
 inline void
 EquationSystem::ApplyBoundaryNLAFIntegrators(
     const std::string & test_var_name,
-    std::shared_ptr<mfem::ParLinearForm> form,
+    std::shared_ptr<mfem::ParNonlinearForm> form,
     NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
         integrated_bc_map)
 {
@@ -362,7 +362,7 @@ EquationSystem::ApplyBoundaryNLAFIntegrators(
     auto bcs = integrated_bc_map.GetRef(test_var_name).GetRef(test_var_name);
     for (auto & bc : bcs)
     {
-      mfem::LinearFormIntegrator * integ = bc->createNLAIntegrator();
+      mfem::NonlinearFormIntegrator * integ = bc->createNLAIntegrator();
       if (integ)
       {
         _non_linear = true;

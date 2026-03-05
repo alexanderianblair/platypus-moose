@@ -461,7 +461,7 @@ EquationSystem::Mult(const mfem::Vector & sol, mfem::Vector & residual) const
       lf->ParallelAssemble(b);
       b.SyncAliasMemory(b);
 
-      auto nlf = _nlAs.GetShared(test_var_name);
+      auto nlf = _nlfs.GetShared(test_var_name);
       nlf->Assemble();
       nlf->ParallelAssemble(_blockResidual.GetBlock(i));
 
@@ -531,20 +531,20 @@ EquationSystem::BuildLinearForms()
 void
 EquationSystem::BuildNonLinearActionForms()
 {
-  // Register non-linear Action forms
+  // Register non-linear forms
   for (const auto i : index_range(_test_var_names))
   {
     auto test_var_name = _test_var_names.at(i);
-    _nlAs.Register(test_var_name, std::make_shared<mfem::ParLinearForm>(_test_pfespaces.at(i)));
-    _nlAs.GetRef(test_var_name) = 0.0;
+    _nlfs.Register(test_var_name, std::make_shared<mfem::ParNonlinearForm>(_test_pfespaces.at(i)));
+    _nlfs.GetRef(test_var_name) = 0.0;
   }
 
   for (auto & test_var_name : _test_var_names)
   {
     // Apply kernels
-    auto nlA = _nlAs.GetShared(test_var_name);
-    ApplyDomainNLAFIntegrators(test_var_name, nlA, _kernels_map);
-    ApplyBoundaryNLAFIntegrators(test_var_name, nlA, _integrated_bc_map);
+    auto nlf = _nlfs.GetShared(test_var_name);
+    ApplyDomainNLAFIntegrators(test_var_name, nlf, _kernels_map);
+    ApplyBoundaryNLAFIntegrators(test_var_name, nlf, _integrated_bc_map);
   }
 }
 
