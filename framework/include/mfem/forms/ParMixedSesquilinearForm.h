@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MFEMGeneralUserObject.h"
+#include "PatchedMixedBilinearForm.h"
 
 namespace Moose::MFEM
 {
@@ -12,8 +13,8 @@ class ParMixedSesquilinearForm
 private:
   mfem::ComplexOperator::Convention _conv;
 
-  mfem::ParMixedBilinearForm * _pmblfr;
-  mfem::ParMixedBilinearForm * _pmblfi;
+  Moose::MFEM::ParMixedBilinearForm * _pmblfr;
+  Moose::MFEM::ParMixedBilinearForm * _pmblfi;
 
   /* These methods check if the real/imag parts of the sesqulinear form are not
      empty */
@@ -36,8 +37,8 @@ public:
   ParMixedSesquilinearForm(
       mfem::ParFiniteElementSpace * trial_fes,
       mfem::ParFiniteElementSpace * test_fes,
-      mfem::ParMixedBilinearForm * pbfr,
-      mfem::ParMixedBilinearForm * pbfi,
+      Moose::MFEM::ParMixedBilinearForm * pbfr,
+      Moose::MFEM::ParMixedBilinearForm * pbfi,
       mfem::ComplexOperator::Convention convention = mfem::ComplexOperator::HERMITIAN);
 
   mfem::ComplexOperator::Convention GetConvention() const { return _conv; }
@@ -59,10 +60,10 @@ public:
     _pmblfi->SetAssemblyLevel(assembly_level);
   }
 
-  mfem::ParMixedBilinearForm & real() { return *_pmblfr; }
-  mfem::ParMixedBilinearForm & imag() { return *_pmblfi; }
-  const mfem::ParMixedBilinearForm & real() const { return *_pmblfr; }
-  const mfem::ParMixedBilinearForm & imag() const { return *_pmblfi; }
+  Moose::MFEM::ParMixedBilinearForm & real() { return *_pmblfr; }
+  Moose::MFEM::ParMixedBilinearForm & imag() { return *_pmblfi; }
+  const Moose::MFEM::ParMixedBilinearForm & real() const { return *_pmblfr; }
+  const Moose::MFEM::ParMixedBilinearForm & imag() const { return *_pmblfi; }
 
   /// Adds new Domain Integrator.
   void AddDomainIntegrator(mfem::BilinearFormIntegrator * bfi_real,

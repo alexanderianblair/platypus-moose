@@ -25,19 +25,19 @@ ParMixedSesquilinearForm::ParMixedSesquilinearForm(mfem::ParFiniteElementSpace *
                                                    mfem::ParFiniteElementSpace * test_fes,
                                                    mfem::ComplexOperator::Convention convention)
   : _conv(convention),
-    _pmblfr(new mfem::ParMixedBilinearForm(trial_fes, test_fes)),
-    _pmblfi(new mfem::ParMixedBilinearForm(trial_fes, test_fes))
+    _pmblfr(new Moose::MFEM::ParMixedBilinearForm(trial_fes, test_fes)),
+    _pmblfi(new Moose::MFEM::ParMixedBilinearForm(trial_fes, test_fes))
 {
 }
 
 ParMixedSesquilinearForm::ParMixedSesquilinearForm(mfem::ParFiniteElementSpace * trial_fes,
                                                    mfem::ParFiniteElementSpace * test_fes,
-                                                   mfem::ParMixedBilinearForm * pbfr,
-                                                   mfem::ParMixedBilinearForm * pbfi,
+                                                   Moose::MFEM::ParMixedBilinearForm * pbfr,
+                                                   Moose::MFEM::ParMixedBilinearForm * pbfi,
                                                    mfem::ComplexOperator::Convention convention)
   : _conv(convention),
-    _pmblfr(new mfem::ParMixedBilinearForm(trial_fes, test_fes, pbfr)),
-    _pmblfi(new mfem::ParMixedBilinearForm(trial_fes, test_fes, pbfi))
+    _pmblfr(new Moose::MFEM::ParMixedBilinearForm(trial_fes, test_fes, pbfr)),
+    _pmblfi(new Moose::MFEM::ParMixedBilinearForm(trial_fes, test_fes, pbfi))
 {
 }
 
