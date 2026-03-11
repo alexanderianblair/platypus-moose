@@ -1,5 +1,4 @@
-#AV-Form frequency-domain solve
-#Equation curl(nu curl A) + j * \omega * \sigma * A + \sigma * grad V = 0
+# AV-Form frequency-domain solve
 # https://doc.comsol.com/6.1/docserver/#!/com.comsol.help.acdc/acdc_ug_theory.05.51.html
 
 # AC current frequency
@@ -30,7 +29,7 @@ potential_difference = 10 # V testing
 
 [Mesh]
   type = MFEMMesh
-  file = vac_oval_coil_solid_target_coarse.e
+  file = vac_oval_coil_solid_target_coarse_labelled_exterior.e
 []
 
 [SubMeshes]
@@ -47,11 +46,17 @@ potential_difference = 10 # V testing
     fec_order = FIRST
     submesh = coil_submesh
   []
-  # [VectorH1FESpace]
-  #   type = MFEMVectorFESpace
-  #   fec_type = H1
-  #   fec_order = FIRST
-  # []
+  [VectorH1FESpace]
+    type = MFEMVectorFESpace
+    fec_type = H1
+    fec_order = FIRST
+  []
+  [CoilHCurlFESpace]
+    type = MFEMVectorFESpace
+    fec_type = ND
+    fec_order = FIRST
+    submesh = coil_submesh
+  []
   [HCurlFESpace]
     type = MFEMVectorFESpace
     fec_type = ND
@@ -81,27 +86,14 @@ potential_difference = 10 # V testing
 []
 
 [AuxVariables]
-  # [h1_b_projection_field]
-  #   type = MFEMComplexVariable
-  #   fespace = VectorH1FESpace
-  # []  
-  # [h1_e_projection_field]
-  #   type = MFEMComplexVariable
-  #   fespace = VectorH1FESpace
-  # []  
-  # [h1_a_projection_field]
-  #   type = MFEMComplexVariable
-  #   fespace = VectorH1FESpace
-  # []
-
-  # [source_electric_potential] #complex (supposingly transferring both components)
-  #   type = MFEMComplexVariable
-  #   fespace = H1FESpace
-  # []
-  # [source_e_field] # curl-free source complex electric field
-  #   type = MFEMComplexVariable
-  #   fespace = HCurlFESpace
-  # []
+  [grad_v] # Electric potential gradient on coil submesh
+    type = MFEMComplexVariable
+    fespace = CoilHCurlFESpace
+  []
+  [parent_grad_v] #  Electric potential gradient on global mesh
+    type = MFEMComplexVariable
+    fespace = HCurlFESpace
+  []
   [e_field] # total complex electric field E = E_ind + E_ext
     type = MFEMComplexVariable
     fespace = HCurlFESpace
@@ -125,28 +117,27 @@ potential_difference = 10 # V testing
 []
 
 [AuxKernels]
-  [curlA]
+  [∇×A]
     type = MFEMComplexCurlAux
     variable = b_field
     source = a_field
     execute_on = TIMESTEP_END
   []
-  [e_field] # E = - iwA
-    type = MFEMComplexSumAux
-    variable = e_field
-    source_variables = 'a_field'
-    scale_factors_real = '0.0'
-    scale_factors_imag = '-${angfreq}'
+  [∇V]
+    type = MFEMComplexGradAux
+    variable = grad_v
+    source = coil_electric_potential
     execute_on = TIMESTEP_END
   []  
-  # [e_field] # E = E_ext - iwA
-  #   type = MFEMComplexSumAux
-  #   variable = e_field
-  #   source_variables = 'source_e_field a_field'
-  #   scale_factors_real = '1.0 0.0'
-  #   scale_factors_imag = '0.0 -${angfreq}'
-  #   execute_on = TIMESTEP_END
-  # []
+  [e_field] # E = -grad V - iwA
+    type = MFEMComplexSumAux
+    variable = e_field
+    source_variables = 'parent_grad_v a_field'
+    scale_factors_real = '-1.0 0.0'
+    scale_factors_imag = '0.0 -${angfreq}'
+    execute_on = TIMESTEP_END
+    execution_order_group = 3 # Evaluate after transfer of grad v to parent mesh
+  []
   [joule_heat_1]
     type = MFEMInnerProductAux
     variable = q1_field
@@ -154,7 +145,7 @@ potential_difference = 10 # V testing
     second_source_vec = e_field_real
     coefficient = sigma
     execute_on = TIMESTEP_END
-    execution_order_group = 2
+    execution_order_group = 4 # Evaluate after e_field update
   []
   [joule_heat_2]
     type = MFEMInnerProductAux
@@ -163,7 +154,7 @@ potential_difference = 10 # V testing
     second_source_vec = e_field_imag
     coefficient = sigma
     execute_on = TIMESTEP_END
-    execution_order_group = 2
+    execution_order_group = 4 # Evaluate after e_field update
   []
   [joule_heat]
     type = MFEMSumAux
@@ -171,33 +162,8 @@ potential_difference = 10 # V testing
     source_variables = 'q1_field q2_field'
     scale_factors = '0.5 0.5'
     execute_on = TIMESTEP_END
-    execution_order_group = 3
+    execution_order_group = 5
   []
-
-  # [h1_b_proj]
-  #   type = MFEMComplexVectorProjectionAux
-  #   variable = h1_b_projection_field
-  #   vector_coefficient_real = b_field_real
-  #   vector_coefficient_imag = b_field_imag
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 3
-  # []
-  # [h1_e_proj]
-  #   type = MFEMComplexVectorProjectionAux
-  #   variable = h1_e_projection_field
-  #   vector_coefficient_real = e_field_real
-  #   vector_coefficient_imag = e_field_imag
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 3
-  # []
-  # [h1_a_proj]
-  #   type = MFEMComplexVectorProjectionAux
-  #   variable = h1_a_projection_field
-  #   vector_coefficient_real = a_field_real
-  #   vector_coefficient_imag = a_field_imag
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 3
-  # []       
 []
 
 [Functions]
@@ -230,7 +196,7 @@ potential_difference = 10 # V testing
   [exterior_a_field]
     type = MFEMComplexVectorTangentialDirichletBC # Enforces J normal to surface, B tangential to surface
     variable = a_field
-    boundary = 'coil_in coil_out terminal_plane'
+    boundary = 'coil_in coil_out terminal_plane exterior'
   []
   # [coil_I_constraint]
   #   type = MFEMComplexIntegratedBC
@@ -292,7 +258,7 @@ potential_difference = 10 # V testing
       type = MFEMCurlCurlKernel
       coefficient = nu
       block = 'target vacuum_region coil'
-    []#[ImagComponent] -> 0 (nu assumed real)
+    []
   []
   [(iωσ-ω²ε)A,A']
     type = MFEMComplexKernel
@@ -350,6 +316,16 @@ potential_difference = 10 # V testing
 [Executioner]
   type = MFEMSteady
   device = cpu
+[]
+
+[Transfers]
+  [submesh_transfer_from_coil]
+    type = MFEMSubMeshComplexTransfer
+    from_variable = grad_v
+    to_variable = parent_grad_v
+    execute_on = TIMESTEP_END
+    execution_order_group = 2
+  []
 []
 
 [Outputs]
