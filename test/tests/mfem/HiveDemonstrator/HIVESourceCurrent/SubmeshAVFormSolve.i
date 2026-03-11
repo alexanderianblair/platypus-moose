@@ -17,10 +17,10 @@ sigma_target = 3.5e6
 # Magnetic reluctivity of free space (1/mu0)
 nu0 = '${fparse (1.0e7)/(4*pi)}'
 
-# potential_difference = 100 # V testing
-coil_current = 2121.3 # A
-terminal_area = 2.4e-5 # m^2 for vac_oval_coil_solid_target_coarse.e coil
-coil_av_current_density = '${fparse coil_current / terminal_area}'
+potential_difference = 10 # V testing
+# coil_current = 2121.3 # A
+# terminal_area = 2.4e-5 # m^2 for vac_oval_coil_solid_target_coarse.e coil
+# coil_av_current_density = '${fparse coil_current / terminal_area}'
 
 
 [Problem]
@@ -62,11 +62,11 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
     fec_type = RT
     fec_order = CONSTANT
   []
-  # [L2FESpace]
-  #   type = MFEMScalarFESpace
-  #   fec_type = L2
-  #   fec_order = CONSTANT
-  # []    
+  [L2FESpace]
+    type = MFEMScalarFESpace
+    fec_type = L2
+    fec_order = FIRST
+  []    
 []
 
 [Variables] 
@@ -102,34 +102,26 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
   #   type = MFEMComplexVariable
   #   fespace = HCurlFESpace
   # []
-  # [e_field] # total complex electric field E = E_ind + E_ext
-  #   type = MFEMComplexVariable
-  #   fespace = HCurlFESpace
-  # []
+  [e_field] # total complex electric field E = E_ind + E_ext
+    type = MFEMComplexVariable
+    fespace = HCurlFESpace
+  []
   [b_field] # complex magnetic flux density
     type = MFEMComplexVariable
     fespace = HDivFESpace
   []
-  # [q_field] # Joule heating on target
-  #   type = MFEMVariable
-  #   fespace = L2FESpace
-  # []
-  # [q1_field] # Joule heating on target
-  #   type = MFEMVariable
-  #   fespace = L2FESpace
-  # []
-  # [q2_field] # Joule heating on target
-  #   type = MFEMVariable
-  #   fespace = L2FESpace
-  # []      
-  # [q_target_field] # Joule heating on target
-  #   type = MFEMComplexVariable
-  #   fespace = L2FESpace
-  # []
-  # [q_coil_field] # Joule heating on coil
-  #   type = MFEMComplexVariable
-  #   fespace = L2FESpace
-  # []    
+  [q_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []
+  [q1_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []
+  [q2_field] # Joule heating on target
+    type = MFEMVariable
+    fespace = L2FESpace
+  []
 []
 
 [AuxKernels]
@@ -139,6 +131,14 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
     source = a_field
     execute_on = TIMESTEP_END
   []
+  [e_field] # E = - iwA
+    type = MFEMComplexSumAux
+    variable = e_field
+    source_variables = 'a_field'
+    scale_factors_real = '0.0'
+    scale_factors_imag = '-${angfreq}'
+    execute_on = TIMESTEP_END
+  []  
   # [e_field] # E = E_ext - iwA
   #   type = MFEMComplexSumAux
   #   variable = e_field
@@ -147,31 +147,32 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
   #   scale_factors_imag = '0.0 -${angfreq}'
   #   execute_on = TIMESTEP_END
   # []
-  # [joule_heat_1]
-  #   type = MFEMInnerProductAux
-  #   variable = q1_field
-  #   first_source_vec = e_field_real
-  #   second_source_vec = e_field_real
-  #   coefficient = sigma
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 2
-  # []
-  # [joule_heat_2]
-  #   type = MFEMInnerProductAux
-  #   variable = q2_field
-  #   first_source_vec = e_field_imag
-  #   second_source_vec = e_field_imag
-  #   coefficient = sigma
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 2
-  # []
-  # [joule_heat]
-  #   type = MFEMSumAux
-  #   variable = q_field
-  #   source_variables = 'q1_field q2_field'
-  #   execute_on = TIMESTEP_END
-  #   execution_order_group = 3
-  # []
+  [joule_heat_1]
+    type = MFEMInnerProductAux
+    variable = q1_field
+    first_source_vec = e_field_real
+    second_source_vec = e_field_real
+    coefficient = sigma
+    execute_on = TIMESTEP_END
+    execution_order_group = 2
+  []
+  [joule_heat_2]
+    type = MFEMInnerProductAux
+    variable = q2_field
+    first_source_vec = e_field_imag
+    second_source_vec = e_field_imag
+    coefficient = sigma
+    execute_on = TIMESTEP_END
+    execution_order_group = 2
+  []
+  [joule_heat]
+    type = MFEMSumAux
+    variable = q_field
+    source_variables = 'q1_field q2_field'
+    scale_factors = '0.5 0.5'
+    execute_on = TIMESTEP_END
+    execution_order_group = 3
+  []
 
   # [h1_b_proj]
   #   type = MFEMComplexVectorProjectionAux
@@ -231,7 +232,7 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
     variable = a_field
     boundary = 'coil_in coil_out terminal_plane'
   []
-  # [coil_input]
+  # [coil_I_constraint]
   #   type = MFEMComplexIntegratedBC
   #   variable = coil_electric_potential
   #   [RealComponent]
@@ -244,15 +245,15 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
   #     coefficient = 0.0
   #     boundary = 'coil_in'
   #   []
-  # []  
-  [coil_input]
+  # []
+  [coil_V_constraint]
     type = MFEMComplexScalarDirichletBC
     variable = coil_electric_potential
     boundary = 'coil_in'
-    coefficient_real = '${coil_av_current_density}'
+    coefficient_real = '${potential_difference}'
     coefficient_imag = 0.0 #no phase-shift
   []
-  [coil_output]
+  [coil_ground]
     type = MFEMComplexScalarDirichletBC
     variable = coil_electric_potential
     boundary = 'coil_out'
@@ -284,8 +285,7 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
 []
 
 [Kernels]
-  # nu curl curl A
-  [curlcurl]
+  [ν∇×A,∇×A']
     type = MFEMComplexKernel
     variable = a_field
     [RealComponent]
@@ -294,31 +294,36 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
       block = 'target vacuum_region coil'
     []#[ImagComponent] -> 0 (nu assumed real)
   []
-  # j*omega*sigma*A - (omega**2)*epsilon0*A
-  [conductive_mass_complex]
+  [(iωσ-ω²ε)A,A']
     type = MFEMComplexKernel
     variable = a_field
     [RealComponent]
       type = MFEMVectorFEMassKernel
-      coefficient = massCoef # = - (omega**2)*epsilon0
+      coefficient = massCoef # = -ω²ε
       block = 'target vacuum_region coil'
     []
     [ImagComponent]
       type = MFEMVectorFEMassKernel
-      coefficient = lossCoef # = \omega * \sigma
+      coefficient = lossCoef # = ωσ
       block = 'target coil'
     []
   []
-  [source_current]
+  [(σ+iωε)∇V,A']
     type = MFEMMixedSesquilinearFormKernel
+    trial_variable = coil_electric_potential
     variable = a_field
-    trial_variable = coil_electric_potential    
     [RealComponent]
       type = MFEMMixedVectorGradientKernel
       coefficient = sigma_coil
     []
+    [ImagComponent]
+      type = MFEMMixedVectorGradientKernel
+      coefficient = '${fparse angfreq * epsilon0}'
+    []     
   []
-  [poisson]
+
+  # div J = 0 gauge choice in coil
+  [σ∇V,∇V']
     type = MFEMComplexKernel
     variable = coil_electric_potential
     [RealComponent]
@@ -326,7 +331,7 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
       coefficient = sigma_coil
     []
   []
-  [poisson_afield]
+  [iωσA,∇V']
     type = MFEMMixedSesquilinearFormKernel
     trial_variable = a_field
     variable = coil_electric_potential
@@ -352,4 +357,9 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
     type = MFEMParaViewDataCollection
     file_base = HIVE/Submesh_AVform_frequency_domain
   []
+  [SubmeshParaViewDataCollection]
+    type = MFEMParaViewDataCollection
+    file_base = HIVE/CoilSubmesh_AVform_frequency_domain
+    submesh = coil_submesh
+  []  
 []
