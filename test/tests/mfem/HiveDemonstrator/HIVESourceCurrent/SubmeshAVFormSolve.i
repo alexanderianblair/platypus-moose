@@ -112,8 +112,7 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
 []
 
 [Functions]
-  # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
-  # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
+  # (iωσ-ω²ε)A represented as (massCoef + i*loss_coef)A where massCoef = -ω²ε, lossCoef = ωσ
   [mass_coef]
     type = ParsedFunction
     expression = -${epsilon0}*${angfreq}^2
@@ -208,8 +207,8 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
 []
 
 [BCs]
-  active = 'exterior_a_field coil_ground coil_voltage_constraint'
-  # active = 'exterior_a_field coil_ground coil_current_constraint'
+  # active 'coil_voltage_constraint coil_ground exterior_a_field' # Strongly constrain coil voltage
+  active = 'coil_current_constraint coil_ground exterior_a_field' # Weakly constrain coil current density
   [exterior_a_field]
     type = MFEMComplexVectorTangentialDirichletBC # Enforces J normal to surface, B tangential to surface
     variable = a_field
@@ -232,15 +231,14 @@ coil_av_current_density = '${fparse coil_current / terminal_area}'
   [coil_current_constraint]
     type = MFEMComplexIntegratedBC
     variable = coil_electric_potential
+    boundary = 'coil_in'
     [RealComponent]
       type = MFEMBoundaryIntegratedBC
       coefficient = '${coil_av_current_density}'
-      boundary = 'coil_in'
     []
     [ImagComponent]
       type = MFEMBoundaryIntegratedBC
       coefficient = 0.0
-      boundary = 'coil_in'
     []
   []
 []
