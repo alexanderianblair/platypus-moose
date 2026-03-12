@@ -17,9 +17,9 @@ sigma_target = 3.5e6
 nu0 = '${fparse (1.0e7)/(4*pi)}'
 
 potential_difference = 10 # V testing
-# coil_current = 2121.3 # A
-# terminal_area = 2.4e-5 # m^2 for vac_oval_coil_solid_target_coarse.e coil
-# coil_av_current_density = '${fparse coil_current / terminal_area}'
+coil_current = 2121.3 # A peak-to-peak
+terminal_area = 2.4e-5 # m^2 for vac_oval_coil_solid_target_coarse.e coil
+coil_av_current_density = '${fparse coil_current / terminal_area}'
 
 
 [Problem]
@@ -45,11 +45,6 @@ potential_difference = 10 # V testing
     fec_type = H1
     fec_order = FIRST
     submesh = coil_submesh
-  []
-  [VectorH1FESpace]
-    type = MFEMVectorFESpace
-    fec_type = H1
-    fec_order = FIRST
   []
   [CoilHCurlFESpace]
     type = MFEMVectorFESpace
@@ -116,6 +111,52 @@ potential_difference = 10 # V testing
   []
 []
 
+[Functions]
+  # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
+  # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
+  [mass_coef]
+    type = ParsedFunction
+    expression = -${epsilon0}*${angfreq}^2
+  []
+  [loss_coef_vac]
+    type = ParsedFunction
+    expression = ${angfreq}*${sigma_vac}
+  []
+  [loss_coef_coil]
+    type = ParsedFunction
+    expression = ${angfreq}*${sigma_coil}
+  []
+  [loss_coef_target]
+    type = ParsedFunction
+    expression = ${angfreq}*${sigma_target}
+  []
+  [sigma_coil]
+    type = ParsedFunction
+    expression = ${sigma_coil}
+  []
+[]
+
+[FunctorMaterials]
+  [vacuum]
+    type = MFEMGenericFunctorMaterial
+    prop_names = 'massCoef lossCoef sigma nu'
+    prop_values = 'mass_coef loss_coef_vac ${sigma_vac} ${nu0}'
+    block = 'vacuum_region'
+  []
+  [coil]
+    type = MFEMGenericFunctorMaterial
+    prop_names = 'massCoef lossCoef sigma nu'
+    prop_values = 'mass_coef loss_coef_coil sigma_coil ${nu0}'
+    block = 'coil'
+  []
+  [target]
+    type = MFEMGenericFunctorMaterial
+    prop_names = 'massCoef lossCoef sigma nu'
+    prop_values = 'mass_coef loss_coef_target ${sigma_target} ${nu0}'
+    block = 'target'
+  []
+[]
+
 [AuxKernels]
   [∇×A]
     type = MFEMComplexCurlAux
@@ -166,58 +207,13 @@ potential_difference = 10 # V testing
   []
 []
 
-[Functions]
-  # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
-  # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
-  [mass_coef]
-    type = ParsedFunction
-    expression = -${epsilon0}*${angfreq}^2
-  []
-  [loss_coef_vac]
-    type = ParsedFunction
-    expression = ${angfreq}*${sigma_vac}
-  []
-  [loss_coef_coil]
-    type = ParsedFunction
-    expression = ${angfreq}*${sigma_coil}
-  []
-  [loss_coef_target]
-    type = ParsedFunction
-    expression = ${angfreq}*${sigma_target}
-  []
-  [sigma_coil]
-    type = ParsedFunction
-    expression = ${sigma_coil}
-  []
-[]
-
 [BCs]
-  # Tangential component of induced electric field 0 on boundary, so A = iE/w =0 
+  active = 'exterior_a_field coil_ground coil_voltage_constraint'
+  # active = 'exterior_a_field coil_ground coil_current_constraint'
   [exterior_a_field]
     type = MFEMComplexVectorTangentialDirichletBC # Enforces J normal to surface, B tangential to surface
     variable = a_field
     boundary = 'coil_in coil_out terminal_plane exterior'
-  []
-  # [coil_I_constraint]
-  #   type = MFEMComplexIntegratedBC
-  #   variable = coil_electric_potential
-  #   [RealComponent]
-  #     type = MFEMBoundaryIntegratedBC
-  #     coefficient = '${coil_av_current_density}'
-  #     boundary = 'coil_in'
-  #   []
-  #   [ImagComponent]
-  #     type = MFEMBoundaryIntegratedBC
-  #     coefficient = 0.0
-  #     boundary = 'coil_in'
-  #   []
-  # []
-  [coil_V_constraint]
-    type = MFEMComplexScalarDirichletBC
-    variable = coil_electric_potential
-    boundary = 'coil_in'
-    coefficient_real = '${potential_difference}'
-    coefficient_imag = 0.0 #no phase-shift
   []
   [coil_ground]
     type = MFEMComplexScalarDirichletBC
@@ -226,27 +222,26 @@ potential_difference = 10 # V testing
     coefficient_real = 0.0
     coefficient_imag = 0.0
   []
-[]
-
-[FunctorMaterials]
-  #expose \sigma, nu, mass/loss for j*\omega*\sigma
-  [vacuum]
-    type = MFEMGenericFunctorMaterial
-    prop_names = 'massCoef lossCoef sigma nu'
-    prop_values = 'mass_coef loss_coef_vac ${sigma_vac} ${nu0}'
-    block = 'vacuum_region'
-  []
-  [coil]
-    type = MFEMGenericFunctorMaterial
-    prop_names = 'massCoef lossCoef sigma nu'
-    prop_values = 'mass_coef loss_coef_coil sigma_coil ${nu0}'
-    block = 'coil'
-  []
-  [target]
-    type = MFEMGenericFunctorMaterial
-    prop_names = 'massCoef lossCoef sigma nu'
-    prop_values = 'mass_coef loss_coef_target ${sigma_target} ${nu0}'
-    block = 'target'
+  [coil_voltage_constraint]
+    type = MFEMComplexScalarDirichletBC
+    variable = coil_electric_potential
+    boundary = 'coil_in'
+    coefficient_real = '${potential_difference}'
+    coefficient_imag = 0.0 #no phase-shift
+  []  
+  [coil_current_constraint]
+    type = MFEMComplexIntegratedBC
+    variable = coil_electric_potential
+    [RealComponent]
+      type = MFEMBoundaryIntegratedBC
+      coefficient = '${coil_av_current_density}'
+      boundary = 'coil_in'
+    []
+    [ImagComponent]
+      type = MFEMBoundaryIntegratedBC
+      coefficient = 0.0
+      boundary = 'coil_in'
+    []
   []
 []
 
@@ -285,7 +280,7 @@ potential_difference = 10 # V testing
     [ImagComponent]
       type = MFEMMixedVectorGradientKernel
       coefficient = '${fparse angfreq * epsilon0}'
-    []     
+    []
   []
 
   # div J = 0 gauge choice in coil
