@@ -43,67 +43,64 @@ MultiApplibMeshToMFEMShapeEvaluationTransfer::getActiveToProblem()
 }
 
 void
-MultiApplibMeshToMFEMShapeEvaluationTransfer::transferVariables(bool is_target_local)
+MultiApplibMeshToMFEMShapeEvaluationTransfer::transferVariable(const unsigned int var_index, bool is_target_local)
 {
-  for (const auto var_index : make_range(numToVar()))
+  // Declare map of processor ID to corresponding vector of libMesh points
+  // on that processor to interpolate source libMesh variable at
+  std::map<processor_id_type, std::vector<Point>> outgoing_points;
+  mfem::Vector interp_vals;
+  if (is_target_local)
   {
-    // Declare map of processor ID to corresponding vector of libMesh points
-    // on that processor to interpolate source libMesh variable at
-    std::map<processor_id_type, std::vector<Point>> outgoing_points;
-    mfem::Vector interp_vals;
-    if (is_target_local)
-    {
-      // Generate list of points where the grid function will be evaluated
-      mfem::ParGridFunction & to_gf =
-          *getActiveToProblem().getProblemData().gridfunctions.Get(getToVarName(var_index));
-      mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
-      if (to_gf.VectorDim() > 1)
-        mooseError("MultiApplibMeshToMFEMShapeEvaluationTransfer does not support transfers of "
-                   "vector variables from libMesh to MFEM-based subapps");
-      mfem::Vector vxyz;
-      mfem::Ordering::Type point_ordering;
-      _mfem_projector.extractNodePositions(to_pfespace, vxyz, point_ordering);
+    // Generate list of points where the grid function will be evaluated
+    mfem::ParGridFunction & to_gf =
+        *getActiveToProblem().getProblemData().gridfunctions.Get(getToVarName(var_index));
+    mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
+    if (to_gf.VectorDim() > 1)
+      mooseError("MultiApplibMeshToMFEMShapeEvaluationTransfer does not support transfers of "
+                  "vector variables from libMesh to MFEM-based subapps");
+    mfem::Vector vxyz;
+    mfem::Ordering::Type point_ordering;
+    _mfem_projector.extractNodePositions(to_pfespace, vxyz, point_ordering);
 
-      // Populate outgoing point locations map between processor and points vector for libMesh to
-      // use in interpolation
-      const int dim = to_pfespace.GetParMesh()->Dimension();
-      const int nodes_cnt = vxyz.Size() / dim;
-      for (const auto i : make_range(nodes_cnt))
+    // Populate outgoing point locations map between processor and points vector for libMesh to
+    // use in interpolation
+    const int dim = to_pfespace.GetParMesh()->Dimension();
+    const int nodes_cnt = vxyz.Size() / dim;
+    for (const auto i : make_range(nodes_cnt))
+    {
+      for (const auto i_proc : make_range(n_processors()))
       {
-        for (const auto i_proc : make_range(n_processors()))
+        libMesh::Point point_in_target_frame;
+        if (dim == 3)
         {
-          libMesh::Point point_in_target_frame;
-          if (dim == 3)
-          {
-            point_in_target_frame(0) = vxyz[i];
-            point_in_target_frame(1) = vxyz[i + nodes_cnt];
-            point_in_target_frame(2) = vxyz[i + 2 * nodes_cnt];
-          }
-          else if (dim == 2)
-          {
-            point_in_target_frame(0) = vxyz[i];
-            point_in_target_frame(1) = vxyz[i + nodes_cnt];
-          }
-          else
-            mooseError("Target finite element space must be 2D or 3D.");
-
-          outgoing_points[i_proc].push_back(mapPointToActiveSourceFrame(point_in_target_frame));
+          point_in_target_frame(0) = vxyz[i];
+          point_in_target_frame(1) = vxyz[i + nodes_cnt];
+          point_in_target_frame(2) = vxyz[i + 2 * nodes_cnt];
         }
+        else if (dim == 2)
+        {
+          point_in_target_frame(0) = vxyz[i];
+          point_in_target_frame(1) = vxyz[i + nodes_cnt];
+        }
+        else
+          mooseError("Target finite element space must be 2D or 3D.");
+
+        outgoing_points[i_proc].push_back(mapPointToActiveSourceFrame(point_in_target_frame));
       }
-      interp_vals.SetSize(nodes_cnt);
     }
+    interp_vals.SetSize(nodes_cnt);
+  }
 
-    // Perform interpolation of libMesh variable at specified points
-    interpolatelibMeshVariable(outgoing_points, var_index, interp_vals);
+  // Perform interpolation of libMesh variable at specified points
+  interpolatelibMeshVariable(outgoing_points, var_index, interp_vals);
 
-    // Project DoFs to MFEM GridFunction
-    if (is_target_local)
-    {
-      mfem::ParGridFunction & to_gf =
-          *getActiveToProblem().getProblemData().gridfunctions.Get(getToVarName(var_index));
-      mfem::Ordering::Type libmesh_interp_ordering(mfem::Ordering::Type::byNODES);
-      _mfem_projector.projectNodalValues(interp_vals, libmesh_interp_ordering, to_gf);
-    }
+  // Project DoFs to MFEM GridFunction
+  if (is_target_local)
+  {
+    mfem::ParGridFunction & to_gf =
+        *getActiveToProblem().getProblemData().gridfunctions.Get(getToVarName(var_index));
+    mfem::Ordering::Type libmesh_interp_ordering(mfem::Ordering::Type::byNODES);
+    _mfem_projector.projectNodalValues(interp_vals, libmesh_interp_ordering, to_gf);
   }
 }
 

@@ -18,7 +18,7 @@ registerMooseObject("MooseApp", MultiAppMFEMTolibMeshShapeEvaluationTransfer);
 InputParameters
 MultiAppMFEMTolibMeshShapeEvaluationTransfer::validParams()
 {
-  InputParameters params = MFEMMultiAppTransfer::validParams();
+  InputParameters params = MFEMGeneralFieldTransfer::validParams();
   params.addClassDescription("Transfers variable values from an MFEM based application to a "
                              "libMesh application, using shape function evaluations.");
   return params;
@@ -26,7 +26,7 @@ MultiAppMFEMTolibMeshShapeEvaluationTransfer::validParams()
 
 MultiAppMFEMTolibMeshShapeEvaluationTransfer::MultiAppMFEMTolibMeshShapeEvaluationTransfer(
     InputParameters const & params)
-  : MFEMMultiAppTransfer(params), _mfem_interpolator(this->comm().get())
+  : MFEMGeneralFieldTransfer(params), _mfem_interpolator(this->comm().get())
 {
   checkValidTransferProblemTypes<FEProblemBase, MFEMProblem>();
 }
@@ -131,80 +131,93 @@ MultiAppMFEMTolibMeshShapeEvaluationTransfer::projectlibMeshNodalValues(
   // Sync local solutions
   to_sys.update();
 }
-
-void
-MultiAppMFEMTolibMeshShapeEvaluationTransfer::transferVariables(bool is_target_local)
+void MultiAppMFEMTolibMeshShapeEvaluationTransfer::extractTargetPoints(const unsigned int var_index,
+                                                                       mfem::Vector & target_pt_coords,
+                                                                       int & n_points)
 {
-  // Send from MFEM problem to libMesh problem
-  for (const auto var_index : make_range(numToVar()))
+  // If target libMesh app is on the current rank, update the set of interpolation
+  // points with the libMesh variable's set
+  // Declare aliases for convenience
+  FEProblemBase & to_problem = getActiveToProblem();
+  const MooseVariableFieldBase & to_var(
+      to_problem.getVariable(0,
+                              getToVarName(var_index),
+                              Moose::VarKindType::VAR_ANY,
+                              Moose::VarFieldType::VAR_FIELD_ANY));
+  const auto & to_var_name = getToVarName(var_index);
+  auto & es = getlibMeshEquationSystem(to_problem, _displaced_target_mesh);
+  System & to_sys = *find_sys(es, to_var_name);
+  // Extract set of target points in libMesh mesh to perform interpolation of MFEM variable at
+  std::vector<Point> outgoing_libmesh_points;
+  extractlibMeshNodePositions(to_sys, to_var, outgoing_libmesh_points);
+  const MeshBase & to_mesh = to_problem.mesh(_displaced_target_mesh).getMesh();
+  // Perform interpolation of MFEM variable
+  const mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;
+  for (auto & point : outgoing_libmesh_points)
+    point = mapPointToActiveSourceFrame(point);
+  target_pt_coords = Moose::MFEM::libMeshPointsToMFEMVector(
+      outgoing_libmesh_points, to_mesh.mesh_dimension(), ordering);
+  n_points = target_pt_coords.Size()/to_mesh.mesh_dimension();
+}
+
+void MultiAppMFEMTolibMeshShapeEvaluationTransfer::evaluateActiveSourceAtTargetPoints(const unsigned int var_index,
+                                                const mfem::Vector & target_pt_coords,
+                                                const int & n_points,
+                                                std::vector<CandidateValue> & candidates,
+                                                bool is_target_local)
+{
+  mfem::Vector interp_vals;  
+  // Declare source variable alias and construct vectors to store interpolation points and vals
+  auto & from_var =
+      getActiveFromProblem().getProblemData().gridfunctions.GetRef(getFromVarName(var_index));
+  if (from_var.VectorDim() > 1)
+    mooseError("MultiAppMFEMTolibMeshShapeEvaluationTransfer does not support transfers of "
+                "vector variables from MFEM to libMesh-based subapps");
+  from_var.ParFESpace()->GetParMesh()->EnsureNodes();  
+  // Ordering of interpolated MFEM output, chosen to match libMesh ordering
+  const mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;  
+  // MFEM interpolation using FindPointsGSLib::Interpolate must be over all ranks
+  // of the MFEM variable's MPI communicator
+  _mfem_interpolator.SetDefaultInterpolationValue(getMFEMOutOfMeshValue());
+  _mfem_interpolator.Interpolate(*from_var.ParFESpace()->GetParMesh(),
+                                  target_pt_coords,
+                                  from_var,
+                                  interp_vals,
+                                  ordering);
+
+  candidates.assign(n_points, CandidateValue{});
+
+  for (const auto i : index_range(candidates))
   {
-    // Declare source variable alias and construct vectors to store interpolation points and vals
-    auto & from_var =
-        getActiveFromProblem().getProblemData().gridfunctions.GetRef(getFromVarName(var_index));
-    if (from_var.VectorDim() > 1)
-      mooseError("MultiAppMFEMTolibMeshShapeEvaluationTransfer does not support transfers of "
-                 "vector variables from MFEM to libMesh-based subapps");
-    from_var.ParFESpace()->GetParMesh()->EnsureNodes();
-    // Ordering of interpolated MFEM output, chosen to match libMesh ordering
-    const mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;
-    mfem::Vector interp_vals;
-    mfem::Vector outgoing_mfem_points;
-
-    // If target libMesh app is on the current rank, update the set of interpolation
-    // points with the libMesh variable's set
-    if (is_target_local)
-    {
-      // Declare aliases for convenience
-      FEProblemBase & to_problem = getActiveToProblem();
-      const MooseVariableFieldBase & to_var(
-          to_problem.getVariable(0,
-                                 getToVarName(var_index),
-                                 Moose::VarKindType::VAR_ANY,
-                                 Moose::VarFieldType::VAR_FIELD_ANY));
-      const auto & to_var_name = getToVarName(var_index);
-      auto & es = getlibMeshEquationSystem(to_problem, _displaced_target_mesh);
-      System & to_sys = *find_sys(es, to_var_name);
-      // Extract set of target points in libMesh mesh to perform interpolation of MFEM variable at
-      std::vector<Point> outgoing_libmesh_points;
-      extractlibMeshNodePositions(to_sys, to_var, outgoing_libmesh_points);
-      const MeshBase & to_mesh = to_problem.mesh(_displaced_target_mesh).getMesh();
-      // Perform interpolation of MFEM variable
-      const mfem::Ordering::Type ordering = mfem::Ordering::byVDIM;
-      for (auto & point : outgoing_libmesh_points)
-        point = mapPointToActiveSourceFrame(point);
-      outgoing_mfem_points = Moose::MFEM::libMeshPointsToMFEMVector(
-          outgoing_libmesh_points, to_mesh.mesh_dimension(), ordering);
-    }
-
-    // MFEM interpolation using FindPointsGSLib::Interpolate must be over all ranks
-    // of the MFEM variable's MPI communicator
-    _mfem_interpolator.SetDefaultInterpolationValue(getMFEMOutOfMeshValue());
-    _mfem_interpolator.Interpolate(*from_var.ParFESpace()->GetParMesh(),
-                                   outgoing_mfem_points,
-                                   from_var,
-                                   interp_vals,
-                                   ordering);
-
-    // If target libMesh variable exists on the current rank, update the set of local
-    // DoFs of the target libMesh variable using the interpolated MFEM values
-    if (is_target_local)
-    {
-      // Declare aliases for convenience
-      FEProblemBase & to_problem = getActiveToProblem();
-      const MooseVariableFieldBase & to_var(
-          to_problem.getVariable(0,
-                                 getToVarName(var_index),
-                                 Moose::VarKindType::VAR_ANY,
-                                 Moose::VarFieldType::VAR_FIELD_ANY));
-      const auto & to_var_name = getToVarName(var_index);
-      // Get undisplaced system for writing transferred variable to
-      auto & out_es = getlibMeshEquationSystem(to_problem, false);
-      auto & out_sys = *find_sys(out_es, to_var_name);
-
-      // Project interpolated values at destination nodes onto destination variables to set DoFs
-      projectlibMeshNodalValues(out_sys, to_var, interp_vals);
-    }
+    const auto value = is_target_local ? interp_vals[i] : getInvalidValue();
+    candidates[i].value = value;
+    candidates[i].source_app_id = getActiveFromProblemGlobalAppIndex();
+    candidates[i].valid = is_target_local && value != getInvalidValue();
+    candidates[i].score = getActiveFromProblemGlobalAppIndex();
   }
+}
+
+void MultiAppMFEMTolibMeshShapeEvaluationTransfer::writeResolvedValues(const unsigned int var_index,
+                                   const mfem::Vector & target_pt_coords,
+                                   int & n_points,
+                                   mfem::Vector & resolved_values)
+{
+  // If target libMesh variable exists on the current rank, update the set of local
+  // DoFs of the target libMesh variable using the interpolated MFEM values
+  // Declare aliases for convenience
+  FEProblemBase & to_problem = getActiveToProblem();
+  const MooseVariableFieldBase & to_var(
+      to_problem.getVariable(0,
+                              getToVarName(var_index),
+                              Moose::VarKindType::VAR_ANY,
+                              Moose::VarFieldType::VAR_FIELD_ANY));
+  const auto & to_var_name = getToVarName(var_index);
+  // Get undisplaced system for writing transferred variable to
+  auto & out_es = getlibMeshEquationSystem(to_problem, false);
+  auto & out_sys = *find_sys(out_es, to_var_name);
+
+  // Project interpolated values at destination nodes onto destination variables to set DoFs
+  projectlibMeshNodalValues(out_sys, to_var, resolved_values);
 }
 
 #endif

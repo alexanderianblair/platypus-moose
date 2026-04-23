@@ -27,7 +27,7 @@ public:
 
 protected:
   /// Transfer all variables from active source problem to active destination problem.
-  virtual void transferVariables(bool is_target_local) override;
+  virtual void transferVariable(const unsigned int var_index, bool is_target_local) override;
   /// Check number of source and target child apps match for sibling transfer
   void checkSiblingsTransferSupported() const override;
 

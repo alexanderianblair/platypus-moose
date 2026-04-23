@@ -11,14 +11,14 @@
 
 #pragma once
 
-#include "MFEMMultiAppTransfer.h"
+#include "MFEMGeneralFieldTransfer.h"
 #include "MFEMProblem.h"
 
 /**
  * MultiApp transfer from MFEM to libMesh variables, performed via evaluation of
  * shape functions. Meshes can differ between source and destination variables.
  */
-class MultiAppMFEMTolibMeshShapeEvaluationTransfer : public MFEMMultiAppTransfer
+class MultiAppMFEMTolibMeshShapeEvaluationTransfer : public MFEMGeneralFieldTransfer
 {
 public:
   static InputParameters validParams();
@@ -27,6 +27,21 @@ public:
 protected:
   /// Object to perform pointwise interpolation of source MFEM GridFunctions.
   mfem::FindPointsGSLIB _mfem_interpolator;
+
+  virtual void extractTargetPoints(const unsigned int var_index,
+                                   mfem::Vector & target_pt_coords,
+                                  int & n_points) override;
+
+  virtual void evaluateActiveSourceAtTargetPoints(const unsigned int var_index,
+                                                  const mfem::Vector & target_pt_coords,
+                                                  const int & n_points,
+                                                  std::vector<CandidateValue> & candidates,
+                                                  bool is_target_local) override;
+
+  virtual void writeResolvedValues(const unsigned int var_index,
+                                   const mfem::Vector & target_pt_coords,
+                                   int & n_points,
+                                   mfem::Vector & resolved_values) override;
 
   /// Extract all target points of the destination libMesh variable, needed to set DoFs in transfer.
   void extractlibMeshNodePositions(libMesh::System & to_sys,
@@ -38,8 +53,8 @@ protected:
                                  const MooseVariableFieldBase & to_var,
                                  mfem::Vector & interp_vals);
 
-  /// Transfer all variables from active MFEM source problem to active libMesh destination problem.
-  virtual void transferVariables(bool is_target_local) override;
+  // /// Transfer all variables from active MFEM source problem to active libMesh destination problem.
+  // virtual void transferVariable(const unsigned int var_index, bool is_target_local) override;
 
   /// Set current MFEM problem to fetch source variables from
   virtual MFEMProblem & getActiveFromProblem() override;

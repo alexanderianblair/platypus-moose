@@ -48,7 +48,7 @@ MultiAppMFEMCopyTransfer::getActiveToProblem()
 }
 
 void
-MultiAppMFEMCopyTransfer::transferVariables(bool /*is_target_local*/)
+MultiAppMFEMCopyTransfer::transferVariable(const unsigned int var_index, bool /*is_target_local*/)
 {
   auto getGF = [&](MFEMProblem & problem, const std::string & name) -> mfem::Vector &
   {
@@ -59,16 +59,13 @@ MultiAppMFEMCopyTransfer::transferVariables(bool /*is_target_local*/)
     mooseError("No real or complex variable named '", name, "' found.");
   };
 
-  for (const auto v : make_range(numToVar()))
-  {
-    mfem::Vector & from_var = getGF(getActiveFromProblem(), getFromVarName(v));
-    mfem::Vector & to_var = getGF(getActiveToProblem(), getToVarName(v));
+  mfem::Vector & from_var = getGF(getActiveFromProblem(), getFromVarName(var_index));
+  mfem::Vector & to_var = getGF(getActiveToProblem(), getToVarName(var_index));
 
-    if (from_var.Size() != to_var.Size())
-      mooseError("'", getFromVarName(v), "' and '", getToVarName(v), "' differ in no. of DoFs.");
+  if (from_var.Size() != to_var.Size())
+    mooseError("'", getFromVarName(var_index), "' and '", getToVarName(var_index), "' differ in no. of DoFs.");
 
-    to_var = from_var;
-  }
+  to_var = from_var;
 }
 
 void

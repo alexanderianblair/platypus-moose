@@ -50,7 +50,7 @@ MultiAppMFEMShapeEvaluationTransfer::getActiveToProblem()
 }
 
 void
-MultiAppMFEMShapeEvaluationTransfer::transferVariables(bool is_target_local)
+MultiAppMFEMShapeEvaluationTransfer::transferVariable(const unsigned int var_index, bool is_target_local)
 {
   auto transformTargetPointsToSourceFrame =
       [this](mfem::Vector & point_coordinates, const unsigned int dimension)
@@ -92,71 +92,68 @@ MultiAppMFEMShapeEvaluationTransfer::transferVariables(bool is_target_local)
     mooseError("No real or complex variable named '", name, "' found.");
   };
 
-  for (const auto v : make_range(numToVar()))
+  bool is_from_complex{false};
+  mfem::ParGridFunction & from_gf =
+      getGridFunction(getActiveFromProblem(), getFromVarName(var_index), is_from_complex);
+  mfem::ParFiniteElementSpace & from_pfespace = *from_gf.ParFESpace();
+  from_pfespace.GetParMesh()->EnsureNodes();
+
+  bool is_to_complex{false};
+  // Vector to store position coords of nodes/interpolation pts
+  mfem::Vector vxyz;
+  // Ordering of node coordinates x,y,z
+  mfem::Ordering::Type point_ordering = mfem::Ordering::Type::byNODES;
+  // Ordering of (vector) GridFunction data
+  mfem::Ordering::Type to_gf_ordering = mfem::Ordering::Type::byVDIM;
+  // Vector to store GridFunction values at interp. pts
+  mfem::Vector interp_vals;
+
+  // Get points from target GridFunction on local rank
+  if (is_target_local)
   {
-    bool is_from_complex{false};
-    mfem::ParGridFunction & from_gf =
-        getGridFunction(getActiveFromProblem(), getFromVarName(v), is_from_complex);
-    mfem::ParFiniteElementSpace & from_pfespace = *from_gf.ParFESpace();
-    from_pfespace.GetParMesh()->EnsureNodes();
+    mfem::ParGridFunction & to_gf =
+        getGridFunction(getActiveToProblem(), getToVarName(var_index), is_to_complex);
+    mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
+    to_pfespace.GetParMesh()->EnsureNodes();
+    // Generate list of points where the grid function will be evaluated
+    _mfem_projector.extractNodePositions(to_pfespace, vxyz, point_ordering);
+    // Evaluate source grid function at target points
+    const int dim = to_pfespace.GetParMesh()->Dimension();
+    transformTargetPointsToSourceFrame(vxyz, dim);
+    // Update ordering for interpolation
+    to_gf_ordering = to_pfespace.GetOrdering();
+  }
 
-    bool is_to_complex{false};
-    // Vector to store position coords of nodes/interpolation pts
-    mfem::Vector vxyz;
-    // Ordering of node coordinates x,y,z
-    mfem::Ordering::Type point_ordering = mfem::Ordering::Type::byNODES;
-    // Ordering of (vector) GridFunction data
-    mfem::Ordering::Type to_gf_ordering = mfem::Ordering::Type::byVDIM;
-    // Vector to store GridFunction values at interp. pts
-    mfem::Vector interp_vals;
+  // Evaluate source grid function at target points.
+  // Interpolation must be performed over all source ranks.
+  _mfem_interpolator.Setup(*from_gf.ParFESpace()->GetParMesh());
+  _mfem_interpolator.SetDefaultInterpolationValue(getMFEMOutOfMeshValue());
+  _mfem_interpolator.Interpolate(vxyz, from_gf, interp_vals, point_ordering, to_gf_ordering);
 
-    // Get points from target GridFunction on local rank
-    if (is_target_local)
+  // Project interpolated field onto target GridFunction data on the local rank
+  if (is_target_local)
+  {
+    mfem::ParGridFunction & to_gf =
+        getGridFunction(getActiveToProblem(), getToVarName(var_index), is_to_complex);
+    mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
+    _mfem_projector.projectNodalValues(interp_vals, to_gf_ordering, to_gf);
+    if (is_to_complex)
     {
-      mfem::ParGridFunction & to_gf =
-          getGridFunction(getActiveToProblem(), getToVarName(v), is_to_complex);
-      mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
-      to_pfespace.GetParMesh()->EnsureNodes();
-      // Generate list of points where the grid function will be evaluated
-      _mfem_projector.extractNodePositions(to_pfespace, vxyz, point_ordering);
-      // Evaluate source grid function at target points
-      const int dim = to_pfespace.GetParMesh()->Dimension();
-      transformTargetPointsToSourceFrame(vxyz, dim);
-      // Update ordering for interpolation
-      to_gf_ordering = to_pfespace.GetOrdering();
-    }
-
-    // Evaluate source grid function at target points.
-    // Interpolation must be performed over all source ranks.
-    _mfem_interpolator.Setup(*from_gf.ParFESpace()->GetParMesh());
-    _mfem_interpolator.SetDefaultInterpolationValue(getMFEMOutOfMeshValue());
-    _mfem_interpolator.Interpolate(vxyz, from_gf, interp_vals, point_ordering, to_gf_ordering);
-
-    // Project interpolated field onto target GridFunction data on the local rank
-    if (is_target_local)
-    {
-      mfem::ParGridFunction & to_gf =
-          getGridFunction(getActiveToProblem(), getToVarName(v), is_to_complex);
-      mfem::ParFiniteElementSpace & to_pfespace = *to_gf.ParFESpace();
-      _mfem_projector.projectNodalValues(interp_vals, to_gf_ordering, to_gf);
-      if (is_to_complex)
+      // Get remaining imaginary component of destination GridFunction
+      mfem::ParGridFunction & to_gf_im =
+          getActiveToProblem().getProblemData().cmplx_gridfunctions.Get(getToVarName(var_index))->imag();
+      if (is_from_complex)
       {
-        // Get remaining imaginary component of destination GridFunction
-        mfem::ParGridFunction & to_gf_im =
-            getActiveToProblem().getProblemData().cmplx_gridfunctions.Get(getToVarName(v))->imag();
-        if (is_from_complex)
-        {
-          mfem::ParGridFunction & from_gf_im = getActiveFromProblem()
-                                                   .getProblemData()
-                                                   .cmplx_gridfunctions.Get(getFromVarName(v))
-                                                   ->imag();
-          _mfem_interpolator.Interpolate(
-              vxyz, from_gf_im, interp_vals, point_ordering, to_pfespace.GetOrdering());
-          _mfem_projector.projectNodalValues(interp_vals, to_pfespace.GetOrdering(), to_gf_im);
-        }
-        else // Transfer from real variable to complex variable, so imag component zero
-          to_gf_im = 0.0;
+        mfem::ParGridFunction & from_gf_im = getActiveFromProblem()
+                                                  .getProblemData()
+                                                  .cmplx_gridfunctions.Get(getFromVarName(var_index))
+                                                  ->imag();
+        _mfem_interpolator.Interpolate(
+            vxyz, from_gf_im, interp_vals, point_ordering, to_pfespace.GetOrdering());
+        _mfem_projector.projectNodalValues(interp_vals, to_pfespace.GetOrdering(), to_gf_im);
       }
+      else // Transfer from real variable to complex variable, so imag component zero
+        to_gf_im = 0.0;
     }
   }
 }

@@ -97,6 +97,11 @@
 
 # Positions used to create multiple subapps for the 1 to N and N to 1 tests
 [Positions]
+  [mfem_locs]
+    type = InputPositions
+    positions = '-0.6 -0.6 0
+                  0.6  0.6 0'
+  []  
   [libmesh_locs]
     type = InputPositions
     positions = '0 0 0

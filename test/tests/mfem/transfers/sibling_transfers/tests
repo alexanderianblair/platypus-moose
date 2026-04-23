@@ -49,6 +49,20 @@
       restep = false
       detail = 'and from nodal variables sent from one sub-app to multiple sub-apps.'
     []  
+    [N_to_M_nodal]
+      type = Exodiff
+      input = main_between_multiapp.i
+      exodiff = 'mfem_to_libmesh_nodal_NtoM_libmesh_sub0.e mfem_to_libmesh_nodal_NtoM_libmesh_sub1.e'
+      cli_args = "Outputs/file_base=mfem_to_libmesh_nodal_NtoM
+                  MultiApps/libmesh_sub/positions_objects=libmesh_locs
+                  MultiApps/mfem_sub/positions_objects=mfem_locs
+                  Transfers/active='mfem_to_libmesh_nodal_nodal'"
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      restep = false
+      detail = 'and from nodal variables sent from one sub-app to multiple sub-apps.'
+    []      
   []
   [libMesh_to_MFEM_sibling_transfers]
     requirement = "The system shall support multiapp sibling transfers from libMesh to MFEM sub-apps via shape function evaluations"
