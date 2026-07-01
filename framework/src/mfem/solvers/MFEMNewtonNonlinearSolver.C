@@ -25,7 +25,6 @@ MFEMNewtonNonlinearSolver::validParams()
 MFEMNewtonNonlinearSolver::MFEMNewtonNonlinearSolver(const InputParameters & parameters)
   : Moose::MFEM::NonlinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

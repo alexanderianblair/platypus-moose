@@ -42,7 +42,6 @@ MFEMHypreBoomerAMG::MFEMHypreBoomerAMG(const InputParameters & parameters)
                   .getFESpace()
             : nullptr)
 {
-  ConstructSolver();
 }
 
 MFEMHypreBoomerAMG::~MFEMHypreBoomerAMG() { _solver.reset(); }

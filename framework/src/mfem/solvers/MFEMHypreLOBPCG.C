@@ -29,7 +29,6 @@ MFEMHypreLOBPCG::validParams()
 MFEMHypreLOBPCG::MFEMHypreLOBPCG(const InputParameters & parameters)
   : Moose::MFEM::EigensolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

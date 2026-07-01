@@ -26,7 +26,6 @@ MFEMOperatorJacobiSmoother::validParams()
 MFEMOperatorJacobiSmoother::MFEMOperatorJacobiSmoother(const InputParameters & parameters)
   : Moose::MFEM::LinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

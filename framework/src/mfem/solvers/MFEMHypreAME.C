@@ -27,7 +27,6 @@ MFEMHypreAME::validParams()
 MFEMHypreAME::MFEMHypreAME(const InputParameters & parameters)
   : Moose::MFEM::EigensolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

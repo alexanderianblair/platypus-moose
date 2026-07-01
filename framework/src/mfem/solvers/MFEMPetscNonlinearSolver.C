@@ -40,7 +40,6 @@ MFEMPetscNonlinearSolver::validParams()
 MFEMPetscNonlinearSolver::MFEMPetscNonlinearSolver(const InputParameters & parameters)
   : Moose::MFEM::NonlinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

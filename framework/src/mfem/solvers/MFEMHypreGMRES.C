@@ -34,7 +34,6 @@ MFEMHypreGMRES::validParams()
 MFEMHypreGMRES::MFEMHypreGMRES(const InputParameters & parameters)
   : Moose::MFEM::LinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

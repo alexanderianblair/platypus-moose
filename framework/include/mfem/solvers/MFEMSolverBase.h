@@ -39,7 +39,9 @@ protected:
 inline mfem::Solver &
 SolverBase::GetSolver()
 {
-  mooseAssert(_solver, "Attempting to retrieve solver before it's been constructed");
+  // TODO: Ensure all Solvers are constructed after assembly of all EquationSystem objects
+  if (!_solver)
+    ConstructSolver();
   return *_solver;
 }
 } // namespace Moose::MFEM

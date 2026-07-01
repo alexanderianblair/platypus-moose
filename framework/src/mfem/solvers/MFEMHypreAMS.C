@@ -35,7 +35,6 @@ MFEMHypreAMS::MFEMHypreAMS(const InputParameters & parameters)
     _mfem_fespace(getMFEMProblem().getMFEMObject<MFEMFESpace>("MFEMFESpace",
                                                               getParam<MFEMFESpaceName>("fespace")))
 {
-  ConstructSolver();
 }
 
 void

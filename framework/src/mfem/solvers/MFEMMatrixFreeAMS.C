@@ -78,7 +78,6 @@ MFEMMatrixFreeAMS::MFEMMatrixFreeAMS(const InputParameters & parameters)
     _inner_pi_its(getParam<unsigned int>("inner_pi_iterations")),
     _inner_g_its(getParam<unsigned int>("inner_g_iterations"))
 {
-  ConstructSolver();
 }
 
 void
@@ -108,7 +107,7 @@ MFEMMatrixFreeAMS::SetupLOR()
   _equation_system->ApplyEssentialBC(trial_var_name, trial_gf, ess_bdr_markers);
 
   // update the pointer to the bilinear form representing the curl-curl problem being preconditioned
-  auto & matrix_free_ams = static_cast<Moose::MFEM::MatrixFreeAMS &>(*_solver);
+  auto & matrix_free_ams = static_cast<Moose::MFEM::MatrixFreeAMS &>(GetSolver());
   matrix_free_ams.SetBilinearForm(a);
   matrix_free_ams.SetBoundaryMarkers(ess_bdr_markers);
 }

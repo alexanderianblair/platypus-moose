@@ -33,7 +33,6 @@ MFEMCGSolver::validParams()
 MFEMCGSolver::MFEMCGSolver(const InputParameters & parameters)
   : Moose::MFEM::LinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

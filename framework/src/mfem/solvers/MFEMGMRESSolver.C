@@ -33,7 +33,6 @@ MFEMGMRESSolver::validParams()
 MFEMGMRESSolver::MFEMGMRESSolver(const InputParameters & parameters)
   : Moose::MFEM::LinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void

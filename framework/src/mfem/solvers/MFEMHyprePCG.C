@@ -33,7 +33,6 @@ MFEMHyprePCG::validParams()
 MFEMHyprePCG::MFEMHyprePCG(const InputParameters & parameters)
   : Moose::MFEM::LinearSolverBase(parameters)
 {
-  ConstructSolver();
 }
 
 void
