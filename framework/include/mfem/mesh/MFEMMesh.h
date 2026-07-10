@@ -26,6 +26,10 @@ public:
 
   virtual ~MFEMMesh();
 
+  std::vector<int> CreatePeriodicVertexMapping(mfem::Mesh & mesh,
+                                               const mfem::real_t z_rotation_angle,
+                                               mfem::real_t tol = 1e-8) const;
+
   /**
    * Accessors for the _mfem_par_mesh object. If the mesh has
    * not been build, the methods will call the appropriate protected methods to
