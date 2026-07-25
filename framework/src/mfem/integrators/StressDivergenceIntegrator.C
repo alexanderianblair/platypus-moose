@@ -31,7 +31,7 @@ StressDivergenceIntegrator::AssembleRHSElementVect(const mfem::FiniteElement &el
   elvect.SetSize(ndof * sdim);
   elvect = 0.0;
 
-  int order = 2 * el.GetOrder() + 3;    // <-- shared base-class hook
+  int order = 2 * el.GetOrder() + 3;
   const mfem::IntegrationRule &ir = mfem::IntRules.Get(el.GetGeomType(), order);
 
   for (int i = 0; i < ir.GetNPoints(); i++)
