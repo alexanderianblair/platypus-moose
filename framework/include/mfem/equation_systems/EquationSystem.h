@@ -45,19 +45,20 @@ class EquationSystem : public mfem::Operator
 {
 
 public:
-  EquationSystem() = default;
+  EquationSystem(
+      GridFunctions & gridfunctions,
+      ComplexGridFunctions & cmplx_gridfunctions,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
+          integrated_bc_map,
+      NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> & essential_bc_map,
+      std::vector<std::string> & trial_var_names,
+      std::vector<std::string> & test_var_names,
+      std::vector<std::string> & eliminated_var_names,
+      std::vector<std::string> & coupled_var_names,
+      mfem::AssemblyLevel assembly_level);
   ~EquationSystem() override;
 
-  /// Add kernels.
-  virtual void AddKernel(std::shared_ptr<MFEMKernel> kernel);
-  virtual void AddIntegratedBC(std::shared_ptr<MFEMIntegratedBC> kernel);
-  /// Add BC associated with essentially constrained DoFs on boundaries.
-  virtual void AddEssentialBC(std::shared_ptr<MFEMEssentialBC> bc);
-
-  /// Initialise
-  virtual void Init(GridFunctions & gridfunctions,
-                    ComplexGridFunctions & cmplx_gridfunctions,
-                    mfem::AssemblyLevel assembly_level);
   /**
    * Build all weak-form components via BuildEquationSystem(), form the constrained linear part of
    * the system, and populate the true-DoF vectors used by the solve.
@@ -163,15 +164,6 @@ public:
   virtual void BuildEquationSystem();
 
 protected:
-  /// Add coupled variable to EquationSystem.
-  virtual void AddCoupledVariableNameIfMissing(const std::string & coupled_var_name);
-  /// Add eliminated variable to EquationSystem.
-  virtual void AddEliminatedVariableNameIfMissing(const std::string & eliminated_var_name);
-  /// Add test variable to EquationSystem.
-  virtual void AddTestVariableNameIfMissing(const std::string & test_var_name);
-  /// Set trial variable names from subset of coupled variables that have an associated test variable.
-  virtual void SetTrialVariableNames();
-
   /// Deletes the HypreParMatrix associated with any pointer stored in _h_blocks,
   /// and then proceeds to delete all dynamically allocated memory for _h_blocks
   /// itself, resetting all dimensions to zero.
@@ -181,9 +173,6 @@ protected:
   /// and then proceeds to delete all dynamically allocated memory for _jacobian_blocks
   /// itself, resetting all dimensions to zero.
   void DeleteJacobianBlocks();
-
-  bool VectorContainsName(const std::vector<std::string> & the_vector,
-                          const std::string & name) const;
 
   /// Apply essential BC(s) associated with var_name to set true DoFs of trial_gf and update
   /// markers of all essential boundaries
@@ -289,17 +278,17 @@ protected:
 
   /// Names of all trial variables of kernels and boundary conditions
   /// added to this EquationSystem.
-  std::vector<std::string> _coupled_var_names;
+  std::vector<std::string> & _coupled_var_names;
   /// Subset of _coupled_var_names of all variables corresponding to gridfunctions with degrees of
   /// freedom that comprise the state vector of this EquationSystem. This will differ from
   /// _coupled_var_names when time derivatives or other eliminated variables are present.
-  std::vector<std::string> _trial_var_names;
+  std::vector<std::string> & _trial_var_names;
+  /// Names of all test variables corresponding to linear forms in this equation system
+  std::vector<std::string> & _test_var_names;
   /// Names of all coupled variables without a corresponding test variable.
-  std::vector<std::string> _eliminated_var_names;
+  std::vector<std::string> & _eliminated_var_names;
   /// Pointers to coupled variables not part of the reduced EquationSystem.
   Moose::MFEM::GridFunctions _eliminated_variables;
-  /// Names of all test variables corresponding to linear forms in this equation system
-  std::vector<std::string> _test_var_names;
   /// Pointers to finite element spaces associated with test variables.
   std::vector<mfem::ParFiniteElementSpace *> _test_pfespaces;
   /// Pointers to finite element spaces associated with coupled variables.
@@ -319,13 +308,14 @@ protected:
   mfem::Array2D<const mfem::HypreParMatrix *> _h_blocks, _jacobian_blocks;
   /// Arrays to store kernels to act on each component of weak form.
   /// Named according to test and trial variables.
-  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> _kernels_map;
+  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & _kernels_map;
   /// Arrays to store integrated BCs to act on each component of weak form.
   /// Named according to test and trial variables.
-  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> _integrated_bc_map;
+  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
+      _integrated_bc_map;
   /// Arrays to store essential BCs to act on each component of weak form.
   /// Named according to test variable.
-  NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> _essential_bc_map;
+  NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> & _essential_bc_map;
 
   // Operator handle for the jacobian
   mutable mfem::OperatorHandle _jacobian;

@@ -13,41 +13,41 @@
 
 namespace Moose::MFEM
 {
-TimeDependentEquationSystem::TimeDependentEquationSystem(
-    const Moose::MFEM::TimeDerivativeMap & time_derivative_map)
-  : _dt(1.0), _time_derivative_map(time_derivative_map)
-{
-}
+// TimeDependentEquationSystem::TimeDependentEquationSystem(
+//     const Moose::MFEM::TimeDerivativeMap & time_derivative_map)
+//   : _dt(1.0), _time_derivative_map(time_derivative_map)
+// {
+// }
 
-void
-TimeDependentEquationSystem::AddKernel(std::shared_ptr<MFEMKernel> kernel)
-{
-  if (!_time_derivative_map.isTimeDerivative(kernel->getTrialVariableName()))
-  {
-    EquationSystem::AddKernel(kernel);
-    return;
-  }
+// void
+// TimeDependentEquationSystem::AddKernel(std::shared_ptr<MFEMKernel> kernel)
+// {
+//   if (!_time_derivative_map.isTimeDerivative(kernel->getTrialVariableName()))
+//   {
+//     EquationSystem::AddKernel(kernel);
+//     return;
+//   }
 
-  const auto & trial_var_name =
-      _time_derivative_map.getTimeIntegralName(kernel->getTrialVariableName());
-  const auto & test_var_name = kernel->getTestVariableName();
-  AddEliminatedVariableNameIfMissing(trial_var_name);
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new td kernels map if not present for the test variable
-  if (!_td_kernels_map.Has(test_var_name))
-  {
-    auto kernel_field_map =
-        std::make_shared<Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>>();
-    _td_kernels_map.Register(test_var_name, std::move(kernel_field_map));
-  }
-  // Register new td kernels map if not present for the test/trial variable pair
-  if (!_td_kernels_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto kernels = std::make_shared<std::vector<std::shared_ptr<MFEMKernel>>>();
-    _td_kernels_map.Get(test_var_name)->Register(trial_var_name, std::move(kernels));
-  }
-  _td_kernels_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(kernel));
-}
+//   const auto & trial_var_name =
+//       _time_derivative_map.getTimeIntegralName(kernel->getTrialVariableName());
+//   const auto & test_var_name = kernel->getTestVariableName();
+//   AddEliminatedVariableNameIfMissing(trial_var_name);
+//   AddTestVariableNameIfMissing(test_var_name);
+//   // Register new td kernels map if not present for the test variable
+//   if (!_td_kernels_map.Has(test_var_name))
+//   {
+//     auto kernel_field_map =
+//         std::make_shared<Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>>();
+//     _td_kernels_map.Register(test_var_name, std::move(kernel_field_map));
+//   }
+//   // Register new td kernels map if not present for the test/trial variable pair
+//   if (!_td_kernels_map.Get(test_var_name)->Has(trial_var_name))
+//   {
+//     auto kernels = std::make_shared<std::vector<std::shared_ptr<MFEMKernel>>>();
+//     _td_kernels_map.Get(test_var_name)->Register(trial_var_name, std::move(kernels));
+//   }
+//   _td_kernels_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(kernel));
+// }
 
 void
 TimeDependentEquationSystem::BuildBilinearForms()

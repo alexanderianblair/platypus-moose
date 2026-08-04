@@ -21,10 +21,10 @@ namespace Moose::MFEM
 class TimeDependentEquationSystem : public EquationSystem
 {
 public:
-  TimeDependentEquationSystem(const Moose::MFEM::TimeDerivativeMap & time_derivative_map);
+  // TimeDependentEquationSystem(const Moose::MFEM::TimeDerivativeMap & time_derivative_map);
 
   virtual void SetTimeStep(mfem::real_t & dt) { _dt = dt; };
-  virtual void AddKernel(std::shared_ptr<MFEMKernel> kernel) override;
+  // virtual void AddKernel(std::shared_ptr<MFEMKernel> kernel) override;
 
   virtual bool IsTimeDependent() const override { return true; }
 

@@ -19,13 +19,24 @@ mixed and nonlinear forms) and build methods
 class ComplexEquationSystem : public EquationSystem
 {
 public:
-  ComplexEquationSystem() = default;
+  ComplexEquationSystem(
+      GridFunctions & gridfunctions,
+      ComplexGridFunctions & cmplx_gridfunctions,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
+          integrated_bc_map,
+      NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> & essential_bc_map,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexKernel>>>> &
+          cmplx_kernels_map,
+      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>> &
+          cmplx_integrated_bc_map,
+      NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>> & cmplx_essential_bc_map,
+      std::vector<std::string> & trial_var_names,
+      std::vector<std::string> & test_var_names,
+      std::vector<std::string> & eliminated_var_names,
+      std::vector<std::string> & coupled_var_names,
+      mfem::AssemblyLevel assembly_level);
   ~ComplexEquationSystem() = default;
-
-  // Build forms
-  virtual void Init(GridFunctions & gridfunctions,
-                    ComplexGridFunctions & cmplx_gridfunctions,
-                    mfem::AssemblyLevel assembly_level) override;
 
   ///Nonlinear Mult (Used by Newton-solver not necessarily nonlinear)
   virtual void Mult(const mfem::Vector & x, mfem::Vector & y) const override;
@@ -46,15 +57,6 @@ public:
                                        mfem::Array<int> & global_ess_markers);
   /// Update all essentially constrained true DoF markers and values on boundaries
   virtual void ApplyEssentialBCs() override;
-
-  /// Add complex kernels
-  void AddComplexKernel(std::shared_ptr<MFEMComplexKernel> kernel);
-
-  /// Add complex integrated BCs
-  void AddComplexIntegratedBC(std::shared_ptr<MFEMComplexIntegratedBC> bc);
-
-  /// Add complex essential BCs
-  void AddComplexEssentialBCs(std::shared_ptr<MFEMComplexEssentialBC> bc);
 
   /// Form matrix-free representation of system operator.
   /// Used when EquationSystem assembly level is set to 'FULL', 'ELEMENT', 'PARTIAL', or 'NONE'.
@@ -111,13 +113,13 @@ protected:
   NamedFieldsMap<mfem::ParComplexLinearForm> _clfs;
 
   // Complex kernels and integrated BCs
-  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexKernel>>>>
+  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexKernel>>>> &
       _cmplx_kernels_map;
-  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>>
+  NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>> &
       _cmplx_integrated_bc_map;
 
   // Complex essential BCs
-  NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>> _cmplx_essential_bc_map;
+  NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>> & _cmplx_essential_bc_map;
 
   /// Pointers to coupled variables not part of the reduced EquationSystem.
   ComplexGridFunctions _cmplx_eliminated_variables;

@@ -7,13 +7,38 @@
 namespace Moose::MFEM
 {
 
-void
-ComplexEquationSystem::Init(GridFunctions & gridfunctions,
-                            ComplexGridFunctions & cmplx_gridfunctions,
-                            mfem::AssemblyLevel assembly_level)
+ComplexEquationSystem::ComplexEquationSystem(
+    GridFunctions & gridfunctions,
+    ComplexGridFunctions & cmplx_gridfunctions,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
+        integrated_bc_map,
+    NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> & essential_bc_map,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexKernel>>>> &
+        cmplx_kernels_map,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>> &
+        cmplx_integrated_bc_map,
+    NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>> & cmplx_essential_bc_map,
+    std::vector<std::string> & trial_var_names,
+    std::vector<std::string> & test_var_names,
+    std::vector<std::string> & eliminated_var_names,
+    std::vector<std::string> & coupled_var_names,
+    mfem::AssemblyLevel assembly_level)
+  : EquationSystem(gridfunctions,
+                   cmplx_gridfunctions,
+                   kernels_map,
+                   integrated_bc_map,
+                   essential_bc_map,
+                   trial_var_names,
+                   test_var_names,
+                   eliminated_var_names,
+                   coupled_var_names,
+                   assembly_level),
+    _cmplx_kernels_map(cmplx_kernels_map),
+    _cmplx_integrated_bc_map(cmplx_integrated_bc_map),
+    _cmplx_essential_bc_map(cmplx_essential_bc_map),
+    _complex_gfuncs(&cmplx_gridfunctions)
 {
-  _assembly_level = assembly_level;
-
   if (gridfunctions.size())
     mooseError("Mixing real and complex variables is currently not supported.");
 
@@ -37,17 +62,14 @@ ComplexEquationSystem::Init(GridFunctions & gridfunctions,
   for (auto & coupled_var_name : _coupled_var_names)
     _coupled_pfespaces.push_back(cmplx_gridfunctions.Get(coupled_var_name)->ParFESpace());
 
-  // Extract which coupled variables are to be trivially eliminated and which are trial variables
-  SetTrialVariableNames();
+  // // Extract which coupled variables are to be trivially eliminated and which are trial variables
+  // SetTrialVariableNames();
 
   // Store pointers to coupled variable ComplexGridFunctions that are to be eliminated prior to
   // forming the jacobian
   for (auto & eliminated_var_name : _eliminated_var_names)
     _cmplx_eliminated_variables.Register(eliminated_var_name,
                                          cmplx_gridfunctions.GetShared(eliminated_var_name));
-
-  // Get a reference to the complex GridFunctions
-  _complex_gfuncs = &cmplx_gridfunctions;
 }
 
 void
@@ -143,66 +165,6 @@ ComplexEquationSystem::ApplyEssentialBCs()
     ApplyComplexEssentialBC(trial_var_name, trial_gf, _ess_markers.at(i));
     trial_gf.ParFESpace()->GetEssentialTrueDofs(_ess_markers.at(i), _ess_tdof_lists.at(i));
   }
-}
-
-void
-ComplexEquationSystem::AddComplexKernel(std::shared_ptr<MFEMComplexKernel> kernel)
-{
-  const auto & trial_var_name = kernel->getTrialVariableName();
-  const auto & test_var_name = kernel->getTestVariableName();
-  AddCoupledVariableNameIfMissing(trial_var_name);
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new complex kernels map if not present for the test variable
-  if (!_cmplx_kernels_map.Has(test_var_name))
-  {
-    auto kernel_field_map =
-        std::make_shared<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexKernel>>>>();
-    _cmplx_kernels_map.Register(test_var_name, std::move(kernel_field_map));
-  }
-  // Register new complex kernels map if not present for the test/trial variable pair
-  if (!_cmplx_kernels_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto kernels = std::make_shared<std::vector<std::shared_ptr<MFEMComplexKernel>>>();
-    _cmplx_kernels_map.Get(test_var_name)->Register(trial_var_name, std::move(kernels));
-  }
-  _cmplx_kernels_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(kernel));
-}
-
-void
-ComplexEquationSystem::AddComplexIntegratedBC(std::shared_ptr<MFEMComplexIntegratedBC> bc)
-{
-  const auto & trial_var_name = bc->getTrialVariableName();
-  const auto & test_var_name = bc->getTestVariableName();
-  AddCoupledVariableNameIfMissing(trial_var_name);
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new complex integrated bc map if not present for the test variable
-  if (!_cmplx_integrated_bc_map.Has(test_var_name))
-  {
-    auto integrated_bc_field_map =
-        std::make_shared<NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>>();
-    _cmplx_integrated_bc_map.Register(test_var_name, std::move(integrated_bc_field_map));
-  }
-  // Register new complex integrated bc map if not present for the test/trial variable pair
-  if (!_cmplx_integrated_bc_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto bcs = std::make_shared<std::vector<std::shared_ptr<MFEMComplexIntegratedBC>>>();
-    _cmplx_integrated_bc_map.Get(test_var_name)->Register(trial_var_name, std::move(bcs));
-  }
-  _cmplx_integrated_bc_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(bc));
-}
-
-void
-ComplexEquationSystem::AddComplexEssentialBCs(std::shared_ptr<MFEMComplexEssentialBC> bc)
-{
-  const auto & test_var_name = bc->getTestVariableName();
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new complex essential bc map if not present for the test variable
-  if (!_cmplx_essential_bc_map.Has(test_var_name))
-  {
-    auto bcs = std::make_shared<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>>();
-    _cmplx_essential_bc_map.Register(test_var_name, std::move(bcs));
-  }
-  _cmplx_essential_bc_map.GetRef(test_var_name).push_back(std::move(bc));
 }
 
 void

@@ -47,117 +47,35 @@ EquationSystem::DeleteJacobianBlocks()
 }
 
 bool
-EquationSystem::VectorContainsName(const std::vector<std::string> & the_vector,
-                                   const std::string & name) const
+VectorContainsName(const std::vector<std::string> & the_vector, const std::string & name)
 {
   return std::find(the_vector.begin(), the_vector.end(), name) != the_vector.end();
 }
 
-void
-EquationSystem::AddCoupledVariableNameIfMissing(const std::string & coupled_var_name)
+EquationSystem::EquationSystem(
+    GridFunctions & gridfunctions,
+    ComplexGridFunctions & cmplx_gridfunctions,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
+        integrated_bc_map,
+    NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialBC>>> & essential_bc_map,
+    std::vector<std::string> & trial_var_names,
+    std::vector<std::string> & test_var_names,
+    std::vector<std::string> & eliminated_var_names,
+    std::vector<std::string> & coupled_var_names,
+    mfem::AssemblyLevel assembly_level)
+  : _coupled_var_names(coupled_var_names),
+    _trial_var_names(trial_var_names),
+    _test_var_names(test_var_names),
+    _eliminated_var_names(eliminated_var_names),
+    _kernels_map(kernels_map),
+    _integrated_bc_map(integrated_bc_map),
+    _essential_bc_map(essential_bc_map),
+    _assembly_level(assembly_level),
+    _gfuncs(&gridfunctions)
 {
-  if (!VectorContainsName(_coupled_var_names, coupled_var_name))
-    _coupled_var_names.push_back(coupled_var_name);
-}
-
-void
-EquationSystem::AddEliminatedVariableNameIfMissing(const std::string & eliminated_var_name)
-{
-  if (!VectorContainsName(_eliminated_var_names, eliminated_var_name))
-    _eliminated_var_names.push_back(eliminated_var_name);
-}
-
-void
-EquationSystem::AddTestVariableNameIfMissing(const std::string & test_var_name)
-{
-  if (!VectorContainsName(_test_var_names, test_var_name))
-    _test_var_names.push_back(test_var_name);
-}
-
-void
-EquationSystem::SetTrialVariableNames()
-{
-  // If a coupled variable has an equation associated with it,
-  // add it to the set of trial variables.
-  for (const auto & test_var_name : _test_var_names)
-    if (VectorContainsName(_coupled_var_names, test_var_name))
-      _trial_var_names.push_back(test_var_name);
-
-  // Otherwise, add it to the set of eliminated variables.
-  for (const auto & coupled_var_name : _coupled_var_names)
-    if (!VectorContainsName(_test_var_names, coupled_var_name))
-      _eliminated_var_names.push_back(coupled_var_name);
-}
-
-void
-EquationSystem::AddKernel(std::shared_ptr<MFEMKernel> kernel)
-{
-  const auto & trial_var_name = kernel->getTrialVariableName();
-  const auto & test_var_name = kernel->getTestVariableName();
-  AddCoupledVariableNameIfMissing(trial_var_name);
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new kernels map if not present for the test variable
-  if (!_kernels_map.Has(test_var_name))
-  {
-    auto kernel_field_map =
-        std::make_shared<Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>>();
-    _kernels_map.Register(test_var_name, std::move(kernel_field_map));
-  }
-  // Register new kernels map if not present for the test/trial variable pair
-  if (!_kernels_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto kernels = std::make_shared<std::vector<std::shared_ptr<MFEMKernel>>>();
-    _kernels_map.Get(test_var_name)->Register(trial_var_name, std::move(kernels));
-  }
-  _kernels_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(kernel));
-}
-
-void
-EquationSystem::AddIntegratedBC(std::shared_ptr<MFEMIntegratedBC> bc)
-{
-  const auto & trial_var_name = bc->getTrialVariableName();
-  const auto & test_var_name = bc->getTestVariableName();
-  AddCoupledVariableNameIfMissing(trial_var_name);
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new integrated bc map if not present for the test variable
-  if (!_integrated_bc_map.Has(test_var_name))
-  {
-    auto integrated_bc_field_map = std::make_shared<
-        Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>>();
-    _integrated_bc_map.Register(test_var_name, std::move(integrated_bc_field_map));
-  }
-  // Register new integrated bc map if not present for the test/trial variable pair
-  if (!_integrated_bc_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto bcs = std::make_shared<std::vector<std::shared_ptr<MFEMIntegratedBC>>>();
-    _integrated_bc_map.Get(test_var_name)->Register(trial_var_name, std::move(bcs));
-  }
-  _integrated_bc_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(bc));
-}
-
-void
-EquationSystem::AddEssentialBC(std::shared_ptr<MFEMEssentialBC> bc)
-{
-  const auto & test_var_name = bc->getTestVariableName();
-  AddTestVariableNameIfMissing(test_var_name);
-  // Register new essential bc map if not present for the test variable
-  if (!_essential_bc_map.Has(test_var_name))
-  {
-    auto bcs = std::make_shared<std::vector<std::shared_ptr<MFEMEssentialBC>>>();
-    _essential_bc_map.Register(test_var_name, std::move(bcs));
-  }
-  _essential_bc_map.GetRef(test_var_name).push_back(std::move(bc));
-}
-
-void
-EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
-                     Moose::MFEM::ComplexGridFunctions & /*cmplx_gridfunctions*/,
-                     mfem::AssemblyLevel assembly_level)
-{
-  _assembly_level = assembly_level;
-
-  // Extract which coupled variables are to be trivially eliminated and which are trial variables
-  SetTrialVariableNames();
+  // // Extract which coupled variables are to be trivially eliminated and which are trial variables
+  // SetTrialVariableNames();
 
   for (auto & test_var_name : _test_var_names)
   {
@@ -195,9 +113,6 @@ EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
   for (auto & eliminated_var_name : _eliminated_var_names)
     _eliminated_variables.Register(eliminated_var_name,
                                    gridfunctions.GetShared(eliminated_var_name));
-
-  // Get a reference to the GridFunctions
-  _gfuncs = &gridfunctions;
 }
 
 void
