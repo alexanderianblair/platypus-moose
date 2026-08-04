@@ -74,45 +74,66 @@ EquationSystem::EquationSystem(
     _assembly_level(assembly_level),
     _gfuncs(&gridfunctions)
 {
-  // // Extract which coupled variables are to be trivially eliminated and which are trial variables
-  // SetTrialVariableNames();
-
   for (auto & test_var_name : _test_var_names)
   {
-    if (!gridfunctions.Has(test_var_name))
-    {
+    // Store pointers to test FESpaces
+    if (gridfunctions.Has(test_var_name))
+      _test_pfespaces.push_back(gridfunctions.Get(test_var_name)->ParFESpace());
+    else if (cmplx_gridfunctions.Has(test_var_name))
+      _test_pfespaces.push_back(cmplx_gridfunctions.Get(test_var_name)->ParFESpace());
+    else
       mooseError("MFEM variable ",
                  test_var_name,
                  " requested by equation system during initialization was "
                  "not found in gridfunctions");
-    }
-    // Store pointers to test FESpaces
-    _test_pfespaces.push_back(gridfunctions.Get(test_var_name)->ParFESpace());
   }
 
+  // Create auxiliary gridfunctions for storing essential constraints from Dirichlet conditions
   for (auto & trial_var_name : _trial_var_names)
   {
-    if (!gridfunctions.Has(trial_var_name))
-    {
+    if (gridfunctions.Has(trial_var_name))
+      _var_ess_constraints.emplace_back(
+          std::make_unique<mfem::ParGridFunction>(gridfunctions.Get(trial_var_name)->ParFESpace()));
+    else if (cmplx_gridfunctions.Has(trial_var_name))
+      _cmplx_var_ess_constraints.emplace_back(std::make_unique<mfem::ParComplexGridFunction>(
+          cmplx_gridfunctions.Get(trial_var_name)->ParFESpace()));
+    else
       mooseError("MFEM variable ",
                  trial_var_name,
                  " requested by equation system during initialization was "
                  "not found in gridfunctions");
-    }
-    // Create auxiliary gridfunctions for storing essential constraints from Dirichlet conditions
-    _var_ess_constraints.emplace_back(
-        std::make_unique<mfem::ParGridFunction>(gridfunctions.Get(trial_var_name)->ParFESpace()));
   }
 
   // Store pointers to FESpaces of all coupled variables
   for (auto & coupled_var_name : _coupled_var_names)
-    _coupled_pfespaces.push_back(gridfunctions.Get(coupled_var_name)->ParFESpace());
+  {
+    if (gridfunctions.Has(coupled_var_name))
+      _coupled_pfespaces.push_back(gridfunctions.Get(coupled_var_name)->ParFESpace());
+    else if (cmplx_gridfunctions.Has(coupled_var_name))
+      _coupled_pfespaces.push_back(cmplx_gridfunctions.Get(coupled_var_name)->ParFESpace());
+    else
+      mooseError("MFEM variable ",
+                 coupled_var_name,
+                 " requested by equation system during initialization was "
+                 "not found in gridfunctions");
+  }
 
   // Store pointers to coupled variable GridFunctions that are to be eliminated prior to forming the
   // jacobian
   for (auto & eliminated_var_name : _eliminated_var_names)
-    _eliminated_variables.Register(eliminated_var_name,
-                                   gridfunctions.GetShared(eliminated_var_name));
+  {
+    if (gridfunctions.Has(eliminated_var_name))
+      _eliminated_variables.Register(eliminated_var_name,
+                                     gridfunctions.GetShared(eliminated_var_name));
+    else if (cmplx_gridfunctions.Has(eliminated_var_name))
+      _cmplx_eliminated_variables.Register(eliminated_var_name,
+                                           cmplx_gridfunctions.GetShared(eliminated_var_name));
+    else
+      mooseError("MFEM variable ",
+                 eliminated_var_name,
+                 " requested by equation system during initialization was "
+                 "not found in gridfunctions");
+  }
 }
 
 void

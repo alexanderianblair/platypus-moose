@@ -39,37 +39,6 @@ ComplexEquationSystem::ComplexEquationSystem(
     _cmplx_essential_bc_map(cmplx_essential_bc_map),
     _complex_gfuncs(&cmplx_gridfunctions)
 {
-  if (gridfunctions.size())
-    mooseError("Mixing real and complex variables is currently not supported.");
-
-  for (auto & test_var_name : _test_var_names)
-  {
-    if (!cmplx_gridfunctions.Has(test_var_name))
-    {
-      mooseError("MFEM complex variable ",
-                 test_var_name,
-                 " requested by equation system during initialization was "
-                 "not found in gridfunctions");
-    }
-    // Store pointers to test FESpaces
-    _test_pfespaces.push_back(cmplx_gridfunctions.Get(test_var_name)->ParFESpace());
-    // Create auxiliary gridfunctions for storing essential constraints from Dirichlet conditions
-    _cmplx_var_ess_constraints.emplace_back(std::make_unique<mfem::ParComplexGridFunction>(
-        cmplx_gridfunctions.Get(test_var_name)->ParFESpace()));
-  }
-
-  // Store pointers to FESpaces of all coupled variables
-  for (auto & coupled_var_name : _coupled_var_names)
-    _coupled_pfespaces.push_back(cmplx_gridfunctions.Get(coupled_var_name)->ParFESpace());
-
-  // // Extract which coupled variables are to be trivially eliminated and which are trial variables
-  // SetTrialVariableNames();
-
-  // Store pointers to coupled variable ComplexGridFunctions that are to be eliminated prior to
-  // forming the jacobian
-  for (auto & eliminated_var_name : _eliminated_var_names)
-    _cmplx_eliminated_variables.Register(eliminated_var_name,
-                                         cmplx_gridfunctions.GetShared(eliminated_var_name));
 }
 
 void

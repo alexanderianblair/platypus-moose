@@ -108,17 +108,50 @@ MFEMWeakForm::createEquationSystem()
 
   MFEMProblemData & problem_data = getMFEMProblem().getProblemData();
 
-  _equation_system =
-      std::make_shared<Moose::MFEM::EquationSystem>(problem_data.gridfunctions,
-                                                    problem_data.cmplx_gridfunctions,
-                                                    _kernels_map,
-                                                    _integrated_bc_map,
-                                                    _essential_bc_map,
-                                                    _trial_var_names,
-                                                    _test_var_names,
-                                                    _eliminated_var_names,
-                                                    _coupled_var_names,
-                                                    getMFEMProblem()._default_assembly_level);
+  if (getMFEMProblem().getNumericType() == MFEMProblem::NumericType::REAL)
+  {
+    // if (dynamic_cast<MFEMEigenproblem *>(&getMFEMProblem()))
+    //   _equation_system =
+    //   std::make_shared<Moose::MFEM::EigenproblemEquationSystem>(problem_data.gridfunctions,
+    //                                               problem_data.cmplx_gridfunctions,
+    //                                               _kernels_map,
+    //                                               _integrated_bc_map,
+    //                                               _essential_bc_map,
+    //                                               _trial_var_names,
+    //                                               _test_var_names,
+    //                                               _eliminated_var_names,
+    //                                               _coupled_var_names,
+    //                                               getMFEMProblem()._default_assembly_level);
+    // else
+    _equation_system =
+        std::make_shared<Moose::MFEM::EquationSystem>(problem_data.gridfunctions,
+                                                      problem_data.cmplx_gridfunctions,
+                                                      _kernels_map,
+                                                      _integrated_bc_map,
+                                                      _essential_bc_map,
+                                                      _trial_var_names,
+                                                      _test_var_names,
+                                                      _eliminated_var_names,
+                                                      _coupled_var_names,
+                                                      getMFEMProblem()._default_assembly_level);
+  }
+  else if (getMFEMProblem().getNumericType() == MFEMProblem::NumericType::COMPLEX)
+  {
+    _equation_system = std::make_shared<Moose::MFEM::ComplexEquationSystem>(
+        problem_data.gridfunctions,
+        problem_data.cmplx_gridfunctions,
+        _kernels_map,
+        _integrated_bc_map,
+        _essential_bc_map,
+        _cmplx_kernels_map,
+        _cmplx_integrated_bc_map,
+        _cmplx_essential_bc_map,
+        _trial_var_names,
+        _test_var_names,
+        _eliminated_var_names,
+        _coupled_var_names,
+        getMFEMProblem()._default_assembly_level);
+  }
 
   if (problem_data.nonlinear_solver)
     _equation_system->SetGradientRequired(problem_data.nonlinear_solver->RequiresGradient());

@@ -121,12 +121,6 @@ protected:
   // Complex essential BCs
   NamedFieldsMap<std::vector<std::shared_ptr<MFEMComplexEssentialBC>>> & _cmplx_essential_bc_map;
 
-  /// Pointers to coupled variables not part of the reduced EquationSystem.
-  ComplexGridFunctions _cmplx_eliminated_variables;
-
-  /// Complex Gridfunctions holding essential constraints from Dirichlet BCs
-  std::vector<std::unique_ptr<mfem::ParComplexGridFunction>> _cmplx_var_ess_constraints;
-
   // Pointer to complex GridFunctions to enable updates during nonlinear iterations
   Moose::MFEM::ComplexGridFunctions * _complex_gfuncs;
 };

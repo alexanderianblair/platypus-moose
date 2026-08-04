@@ -21,7 +21,6 @@ class EigensolverBase;
 class EigenproblemEquationSystem : public EquationSystem
 {
 public:
-  EigenproblemEquationSystem() = default;
   ~EigenproblemEquationSystem() override = default;
 
   /// Build eigenproblem system, with essential boundary conditions accounted for

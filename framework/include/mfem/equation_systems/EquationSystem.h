@@ -289,6 +289,8 @@ protected:
   std::vector<std::string> & _eliminated_var_names;
   /// Pointers to coupled variables not part of the reduced EquationSystem.
   Moose::MFEM::GridFunctions _eliminated_variables;
+  /// Pointers to coupled complex variables not part of the reduced EquationSystem.
+  ComplexGridFunctions _cmplx_eliminated_variables;
   /// Pointers to finite element spaces associated with test variables.
   std::vector<mfem::ParFiniteElementSpace *> _test_pfespaces;
   /// Pointers to finite element spaces associated with coupled variables.
@@ -302,6 +304,8 @@ protected:
 
   /// Gridfunctions holding essential constraints from Dirichlet BCs
   std::vector<std::unique_ptr<mfem::ParGridFunction>> _var_ess_constraints;
+  /// Complex Gridfunctions holding essential constraints from complex Dirichlet BCs
+  std::vector<std::unique_ptr<mfem::ParComplexGridFunction>> _cmplx_var_ess_constraints;
   std::vector<mfem::Array<int>> _ess_tdof_lists;
   std::vector<mfem::Array<int>> _ess_markers;
 
