@@ -365,6 +365,14 @@ public:
   NumericType getNumericType() const { return _num_type; }
 
   /**
+   * Variables whose HCurl spaces should receive tree-cotree gauge constraints.
+   */
+  const std::vector<VariableName> & getTreeCotreeGaugeVariables() const
+  {
+    return _tree_cotree_gauge_variables;
+  }
+
+  /**
    * Retrieve an MFEM object from the warehouse by system and name.
    */
   template <typename T>
@@ -400,6 +408,11 @@ protected:
    * The numeric representation currently active for this problem.
    */
   NumericType _num_type;
+
+  /**
+   * Variables constrained by tree-cotree gauging.
+   */
+  const std::vector<VariableName> _tree_cotree_gauge_variables;
 
   /**
    * Solver definitions recorded by AddMFEMSolverAction before the dependency resolver constructs

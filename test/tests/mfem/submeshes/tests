@@ -46,6 +46,18 @@
     max_parallel = 1
     recover = false
   []
+  [MFEMTreeCotreeGauge]
+    type = XMLDiff
+    input = magnetostatic_tree_cotree.i
+    xmldiff = 'OutputData/MagnetostaticTreeCotree/Run0/Run0.pvd
+                OutputData/MagnetostaticTreeCotree/Run0/Cycle000001/proc000000.vtu'
+    ignored_items = "root['VTKFile']['UnstructuredGrid']['Piece']['PointData']['DataArray'][0]['#text']" # ignore vector potential
+    requirement = 'MOOSE shall have the ability to apply tree-cotree gauge constraints as additional essential true degrees of freedom in MFEM equation systems.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    max_parallel = 1
+    recover = false
+  []
   [MFEMCoupledCoefficientSource]
     type = XMLDiff
     input = magnetostatic.i

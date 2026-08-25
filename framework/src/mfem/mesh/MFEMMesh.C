@@ -11,9 +11,11 @@
 
 #include "MFEMMesh.h"
 #include "MooseApp.h"
+#include "libmesh/int_range.h"
 #include "libmesh/mesh_generation.h"
 
 #include <fstream>
+#include <numeric>
 
 registerMooseObject("MooseApp", MFEMMesh);
 
@@ -148,6 +150,71 @@ MFEMMesh::displace(mfem::GridFunction const & displacement)
   mfem::GridFunction * nodes = _mfem_par_mesh->GetNodes();
 
   *nodes += displacement;
+}
+
+void
+MFEMMesh::getSpanningForestEdges(mfem::Array<int> & edges) const
+{
+  const auto & mesh = getMFEMParMesh();
+
+  std::vector<int> parent(mesh.GetNV());
+  std::iota(parent.begin(), parent.end(), 0);
+
+  auto find_root = [&parent](int vertex)
+  {
+    int root = vertex;
+    while (parent[root] != root)
+      root = parent[root];
+    while (parent[vertex] != vertex)
+    {
+      const auto next = parent[vertex];
+      parent[vertex] = root;
+      vertex = next;
+    }
+    return root;
+  };
+
+  edges.SetSize(0);
+  mfem::Array<int> vertices;
+  for (const auto edge : make_range(mesh.GetNEdges()))
+  {
+    mesh.GetEdgeVertices(edge, vertices);
+    mooseAssert(vertices.Size() == 2, "Expected every MFEM mesh edge to have two vertices.");
+
+    const auto first_root = find_root(vertices[0]);
+    const auto second_root = find_root(vertices[1]);
+    if (first_root == second_root)
+      continue;
+
+    parent[second_root] = first_root;
+    edges.Append(edge);
+  }
+}
+
+void
+MFEMMesh::getTreeCotreeGaugeTrueDofs(mfem::ParFiniteElementSpace & fespace,
+                                     mfem::Array<int> & tdofs) const
+{
+  mooseAssert(fespace.GetParMesh() == &getMFEMParMesh(),
+              "Tree-cotree gauge finite element space is defined on an unexpected mesh.");
+
+  mfem::Array<int> edges;
+  getSpanningForestEdges(edges);
+
+  mfem::Array<int> vdof_marker(fespace.GetVSize());
+  vdof_marker = 0;
+
+  mfem::Array<int> edge_vdofs;
+  for (const auto edge : edges)
+  {
+    fespace.GetEdgeVDofs(edge, edge_vdofs);
+    for (const auto vdof : edge_vdofs)
+      vdof_marker[mfem::FiniteElementSpace::DecodeDof(vdof)] = -1;
+  }
+
+  mfem::Array<int> tdof_marker;
+  fespace.GetRestrictionMatrix()->BooleanMult(vdof_marker, tdof_marker);
+  mfem::FiniteElementSpace::MarkerToList(tdof_marker, tdofs);
 }
 
 void

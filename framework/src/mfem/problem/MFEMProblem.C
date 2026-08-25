@@ -64,6 +64,11 @@ MFEMProblem::validParams()
                              "using the MFEM finite element library.");
   MooseEnum numeric_types("real complex", "real");
   params.addParam<MooseEnum>("numeric_type", numeric_types, "Number type used for the problem");
+  params.addParam<std::vector<VariableName>>(
+      "tree_cotree_gauge_variables",
+      {},
+      "MFEM variables whose HCurl finite element spaces should be tree-cotree gauged by "
+      "adding the spanning-forest true dofs to the equation system essential true dof list.");
 
   return params;
 }
@@ -71,6 +76,8 @@ MFEMProblem::validParams()
 MFEMProblem::MFEMProblem(const InputParameters & params)
   : ExternalProblem(params),
     _num_type{static_cast<int>(getParam<MooseEnum>("numeric_type"))},
+    _tree_cotree_gauge_variables(getParam<std::vector<VariableName>>(
+        "tree_cotree_gauge_variables")),
     _solution_state_data(declareRestartableDataWithContext<Moose::MFEM::SolutionState>(
         "mfem_solution_state", &_problem_data))
 {

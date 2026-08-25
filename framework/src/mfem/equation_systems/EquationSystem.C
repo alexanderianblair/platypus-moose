@@ -12,7 +12,10 @@
 #include "EquationSystem.h"
 #include "MFEMLinearSolverBase.h"
 #include "CoefficientManager.h"
+#include "MFEMMesh.h"
 #include "libmesh/int_range.h"
+
+#include <set>
 
 namespace Moose::MFEM
 {
@@ -150,6 +153,14 @@ EquationSystem::AddEssentialBC(std::shared_ptr<MFEMEssentialBC> bc)
 }
 
 void
+EquationSystem::SetTreeCotreeGaugeVariables(const std::vector<std::string> & variable_names,
+                                            const MFEMMesh & mesh)
+{
+  _tree_cotree_gauge_var_names = variable_names;
+  _tree_cotree_gauge_mesh = &mesh;
+}
+
+void
 EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
                      Moose::MFEM::ComplexGridFunctions & /*cmplx_gridfunctions*/,
                      mfem::AssemblyLevel assembly_level)
@@ -201,6 +212,33 @@ EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
 }
 
 void
+EquationSystem::ApplyTreeCotreeGauge(const std::string & var_name,
+                                     mfem::ParFiniteElementSpace & fespace,
+                                     mfem::Array<int> & ess_tdof_list)
+{
+  if (!VectorContainsName(_tree_cotree_gauge_var_names, var_name))
+    return;
+
+  if (!_tree_cotree_gauge_mesh)
+    mooseError("Tree-cotree gauge requested for variable '",
+               var_name,
+               "', but no MFEMMesh is available.");
+
+  mfem::Array<int> gauge_tdofs;
+  _tree_cotree_gauge_mesh->getTreeCotreeGaugeTrueDofs(fespace, gauge_tdofs);
+
+  std::set<int> unique_tdofs;
+  for (const auto tdof : ess_tdof_list)
+    unique_tdofs.insert(tdof);
+  for (const auto tdof : gauge_tdofs)
+    unique_tdofs.insert(tdof);
+
+  ess_tdof_list.SetSize(0);
+  for (const auto tdof : unique_tdofs)
+    ess_tdof_list.Append(tdof);
+}
+
+void
 EquationSystem::ApplyEssentialBC(const std::string & var_name,
                                  mfem::ParGridFunction & trial_gf,
                                  mfem::Array<int> & global_ess_markers)
@@ -239,6 +277,7 @@ EquationSystem::ApplyEssentialBCs()
     // essential boundaries to the _ess_markers array
     ApplyEssentialBC(trial_var_name, trial_gf, _ess_markers.at(i));
     trial_gf.ParFESpace()->GetEssentialTrueDofs(_ess_markers.at(i), _ess_tdof_lists.at(i));
+    ApplyTreeCotreeGauge(trial_var_name, *trial_gf.ParFESpace(), _ess_tdof_lists.at(i));
   }
 }
 

@@ -22,6 +22,8 @@
 #include "ScaleIntegrator.h"
 #include "NLScaleIntegrator.h"
 
+class MFEMMesh;
+
 namespace Moose::MFEM
 {
 class CoefficientManager;
@@ -84,6 +86,10 @@ public:
 
   /// Set whether an external object (such as a nonlinear solver) requires Jacobian information for this EquationSystem.
   void SetGradientRequired(bool requires_gradient) { _gradient_required = requires_gradient; }
+
+  /// Set variables for which tree-cotree gauge true dofs are added to essential true dofs.
+  void SetTreeCotreeGaugeVariables(const std::vector<std::string> & variable_names,
+                                   const MFEMMesh & mesh);
 
   /// Set the coefficient manager to notify when trial variables are updated, so that stored
   /// projections of solution-dependent coefficients are invalidated.
@@ -190,6 +196,10 @@ protected:
   virtual void ApplyEssentialBC(const std::string & var_name,
                                 mfem::ParGridFunction & trial_gf,
                                 mfem::Array<int> & global_ess_markers);
+  /// Add tree-cotree gauge true dofs to the essential true dof list for a trial variable.
+  virtual void ApplyTreeCotreeGauge(const std::string & var_name,
+                                    mfem::ParFiniteElementSpace & fespace,
+                                    mfem::Array<int> & ess_tdof_list);
   /// Update all essentially constrained true DoF markers and values on boundaries
   virtual void ApplyEssentialBCs();
   /// Perform trivial eliminations of coupled variables lacking corresponding test variables
@@ -315,6 +325,8 @@ protected:
   std::vector<std::unique_ptr<mfem::ParGridFunction>> _var_ess_constraints;
   std::vector<mfem::Array<int>> _ess_tdof_lists;
   std::vector<mfem::Array<int>> _ess_markers;
+  std::vector<std::string> _tree_cotree_gauge_var_names;
+  const MFEMMesh * _tree_cotree_gauge_mesh = nullptr;
 
   mfem::Array2D<const mfem::HypreParMatrix *> _h_blocks, _jacobian_blocks;
   /// Arrays to store kernels to act on each component of weak form.

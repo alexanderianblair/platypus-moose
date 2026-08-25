@@ -142,6 +142,7 @@ ComplexEquationSystem::ApplyEssentialBCs()
     // essential boundaries to the _ess_markers array
     ApplyComplexEssentialBC(trial_var_name, trial_gf, _ess_markers.at(i));
     trial_gf.ParFESpace()->GetEssentialTrueDofs(_ess_markers.at(i), _ess_tdof_lists.at(i));
+    ApplyTreeCotreeGauge(trial_var_name, *trial_gf.ParFESpace(), _ess_tdof_lists.at(i));
   }
 }
 

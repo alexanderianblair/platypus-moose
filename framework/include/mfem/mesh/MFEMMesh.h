@@ -71,6 +71,17 @@ public:
    */
   void displace(mfem::GridFunction const & displacement);
 
+  /**
+   * Return the local mesh edge ids forming a spanning forest of the vertex-edge graph.
+   */
+  void getSpanningForestEdges(mfem::Array<int> & edges) const;
+
+  /**
+   * Return true dofs on the spanning forest edges for tree-cotree gauging.
+   */
+  void getTreeCotreeGaugeTrueDofs(mfem::ParFiniteElementSpace & fespace,
+                                  mfem::Array<int> & tdofs) const;
+
   bool isDistributedMesh() const override { return true; }
   unsigned int dimension() const override { return _mfem_par_mesh->Dimension(); }
   unsigned int spatialDimension() const override { return _mfem_par_mesh->SpaceDimension(); }
