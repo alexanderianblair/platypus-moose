@@ -7,7 +7,7 @@ omega=1.0  # angular frequency 2*PI
 
 [Mesh]
   type = MFEMMesh
-  file = ../mesh/team_coil_two_vols_plate_exterior_tet_m.msh
+  file = ../mesh/coarse_team_coil_two_vols_plate_exterior_tet_m_offset.msh
 []
 
 [Problem]

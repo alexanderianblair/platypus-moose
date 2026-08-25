@@ -10,7 +10,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
 
 [Mesh]
   type = MFEMMesh
-  file = ../mesh/team_coil_two_vols_plate_exterior_tet_m.msh
+  file = ../mesh/coarse_team_coil_two_vols_plate_exterior_tet_m_offset.msh
 []
 
 [Problem]
