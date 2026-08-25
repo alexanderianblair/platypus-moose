@@ -26,9 +26,6 @@ public:
 
 protected:
   void ConstructSolver() override;
-
-  /// Updates the solver with framework/include/mfem/solvers/MFEMMUMPS.hthe bilinear form in case LOR solve is required
-  void SetupLOR(mfem::ParBilinearForm & a, mfem::Array<int> & ess_bdr_markers) override;
 };
 
 #endif
