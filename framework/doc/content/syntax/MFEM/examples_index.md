@@ -40,6 +40,11 @@ that may serve as a useful starting point for users to adapt.
   field around a topologically closed toroidal conductor carrying a net current, using a magnetic
   vector potential discretized using $H(\mathrm{curl})$ conforming Nédélec elements.
 
+- [Magnetostatic (stranded coil)](syntax/MFEM/StrandedCoilMagnetostatic.md): Solves for the magnetic
+  field around a topologically closed toroidal coil carrying a specified total current, treating the
+  coil as a homogenised stranded conductor whose current density has constant magnitude across the
+  cross-section, with the direction of the current obtained from the geometry of the coil.
+
 ## Fluid Problems
 
 - [Darcy](syntax/MFEM/Darcy.md): Solves a 2D mixed Darcy problem. This is a saddle point

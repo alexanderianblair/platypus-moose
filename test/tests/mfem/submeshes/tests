@@ -95,6 +95,19 @@
     valgrind = heavy
     min_slots = 3 # memory heavy
   []
+  [MFEMStrandedCoilMagnetostatic]
+    design = 'syntax/MFEM/StrandedCoilMagnetostatic.md'
+    issues = '#31404'
+    type = CSVDiff
+    input = stranded_coil_magnetostatic.i
+    csvdiff = 'OutputData/StrandedCoilMagnetostaticCSV.csv'
+    requirement = 'MOOSE shall have the ability to solve for the magnetic field around a topologically closed coil carrying a specified total current, treated as a homogenised stranded conductor whose current density direction is determined from the geometry of the coil.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+    valgrind = heavy
+    min_slots = 3 # memory heavy, needs extra slot for -p 2
+  []
   [MFEMVacuumCutTransitionSubMesh]
     design = 'syntax/MFEM/ClosedCoilMagnetostatic.md'
     issues = '#31404'
