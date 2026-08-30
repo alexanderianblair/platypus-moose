@@ -64,7 +64,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
   []
   [source_j_field]
     type = MFEMComplexVariable
-    fespace = HCurlFESpace
+    fespace = HDivFESpace
   []
 []
 
@@ -79,13 +79,13 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
 
 [BCs]
     # A = iE/w on coil surface
-    # [coil_surface_a_field] 
+    # [coil_surface_a_field]
     #     type = MFEMComplexVectorTangentialDirichletBC
     #     variable = a_field
     #     vector_coefficient_real = 0.0
     #     vector_coefficient_imag = 0.0
     #     boundary = 7
-    # [] 
+    # []
     [tangential_a_bdr]
         type = MFEMComplexVectorTangentialDirichletBC
         variable = a_field
@@ -93,8 +93,22 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
     []
 []
 
+[Constraints]
+  [tree_cotree_gauge]
+    type = MFEMComplexTreeCotreeGaugeEssentialConstraint
+    variable = a_field
+    # Gauge only the non-conducting region: block 3 is the vacuum surrounding the
+    # TorusCore/TorusSheath conductors, where the sigma*dA/dt term already fixes
+    # the gauge. Conductor edges seed the spanning forest but are not gauged.
+    block = 'Free_space First_half Second_half'
+    # Boundaries where a tangential Dirichlet condition is applied to a_field, so
+    # the interior gauge is seeded consistently with that boundary condition.
+    boundary = 'Boundary'
+  []
+[]
+
 [Functions]
-    # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
+    # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A
     # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
     [mass_coef]
         type = ParsedFunction
@@ -161,7 +175,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
       type = MFEMVectorFEMassKernel
       coefficient = loss_coef_target
     []
-  []    
+  []
   [source]
     type = MFEMComplexKernel
     variable = a_field
@@ -170,7 +184,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
       type = MFEMVectorFEDomainLFKernel
       vector_coefficient = source_j_field_real # = J
     []
-  []    
+  []
 []
 
 [Solvers]
@@ -203,9 +217,9 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
 []
 
 [Transfers]
-  [from_sub_source_a_field]
+  [from_sub_source_j_field]
     type = MultiAppMFEMShapeEvaluationTransfer
-    source_variables = source_a_field
+    source_variables = source_j_field
     variables = source_j_field
     from_multi_app = subapp
   []
@@ -225,4 +239,3 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
   []
     csv = true
 []
- 

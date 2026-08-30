@@ -57,7 +57,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
   []
   [source_j_field]
     type = MFEMComplexVariable
-    fespace = HCurlFESpace
+    fespace = HDivFESpace
   []
 []
 
@@ -79,22 +79,22 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
 
 [BCs]
     # A = iE/w on coil surface
-    # [coil_surface_a_field] 
+    # [coil_surface_a_field]
     #     type = MFEMComplexVectorTangentialDirichletBC
     #     variable = a_field
     #     vector_coefficient_real = 0.0
     #     vector_coefficient_imag = 0.0
     #     boundary = 7
-    # [] 
+    # []
     [tangential_a_bdr]
         type = MFEMComplexVectorTangentialDirichletBC
         variable = a_field
         boundary = 'Boundary' #free space
-    []    
+    []
 []
 
 [Functions]
-    # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A 
+    # (i * \omega * \sigma - \omega^2 * \epsilon0)* A represented as (massCoef + i*loss_coef)*A
     # where massCoef = -omega^2 * epsilon0, lossCoef = \omega * sigma
     [mass_coef]
         type = ParsedFunction
@@ -162,7 +162,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
       type = MFEMVectorFEMassKernel
       coefficient = loss_coef_target
     []
-  []    
+  []
   [source]
     type = MFEMMixedSesquilinearFormKernel
     variable = a_field
@@ -171,7 +171,7 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
     [RealComponent]
       type = MFEMMixedVectorMassKernel
     []
-  []  
+  []
 []
 
 [Solvers]
@@ -204,9 +204,9 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
 []
 
 [Transfers]
-  [from_sub_source_a_field]
+  [from_sub_source_j_field]
     type = MultiAppMFEMShapeEvaluationTransfer
-    source_variables = source_a_field
+    source_variables = source_j_field
     variables = source_j_field
     from_multi_app = subapp
   []
@@ -226,4 +226,3 @@ epsilon= 8.8541878176e-12 #Farads/m of free space
   []
     csv = true
 []
- 
