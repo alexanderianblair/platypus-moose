@@ -105,6 +105,15 @@ The total current is recovered by integrating $\vec J$ over a measurement plane 
  correctly. The sign of that integral depends on the orientation of the measurement plane relative
  to that of the cut surface.
 
+Note that the field $\vec E$ giving the direction of current flow is *not* of constant magnitude,
+ since it is the solid conductor solution and so falls off as $1/r$ across the cross-section; it is
+ only its direction that is used. The current density itself is stored for visualisation in a
+ separate variable, built with an [MFEMScaledVectorAux.md] from $\vec E$ and the same coefficient
+ that scales the source term. It is placed in a discontinuous $L^2$ space so that its jump to zero
+ at the surface of the coil is represented sharply, and the coefficient scaling it is declared as a
+ block restricted material property so that it vanishes outside the coil rather than taking full
+ magnitude in the layer of exterior elements sharing degrees of freedom with it.
+
 ## Example File
 
 The full homogenised stranded coil magnetostatic example detailed above can be found below:

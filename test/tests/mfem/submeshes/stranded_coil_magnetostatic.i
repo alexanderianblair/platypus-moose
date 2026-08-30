@@ -55,6 +55,13 @@ vacuum_reluctivity = 1.0
     fec_type = RT
     fec_order = CONSTANT
   []
+  # Discontinuous space for the current density, so that its jump to zero at the surface of the
+  # coil is represented sharply rather than averaged over the elements either side of it.
+  [L2VectorFESpace]
+    type = MFEMVectorFESpace
+    fec_type = L2
+    fec_order = CONSTANT
+  []
   [FluxFESpace]
     type = MFEMVectorFESpace
     fec_type = ND
@@ -84,6 +91,13 @@ vacuum_reluctivity = 1.0
     type = MFEMVariable
     fespace = FluxFESpace
   []
+  # The homogenised stranded current density itself, stored for visualisation. Note that e_field
+  # above is only the direction of current flow, and its magnitude varies as 1/r across the coil
+  # cross-section; it is current_density that is of constant magnitude there.
+  [current_density]
+    type = MFEMVariable
+    fespace = L2VectorFESpace
+  []
 []
 
 [AuxKernels]
@@ -92,6 +106,13 @@ vacuum_reluctivity = 1.0
     variable = b_field
     source = a_field
     scale_factor = 1.0
+    execute_on = TIMESTEP_END
+  []
+  [scale_to_current_density]
+    type = MFEMScaledVectorAux
+    variable = current_density
+    vector_coefficient = e_field
+    coefficient = coil_current_density_scale
     execute_on = TIMESTEP_END
   []
 []
@@ -128,6 +149,16 @@ vacuum_reluctivity = 1.0
     type = MFEMGenericFunctorMaterial
     prop_names = reluctivity
     prop_values = ${vacuum_reluctivity}
+  []
+  # Block restricted copy of the scaling above. A piecewise coefficient evaluates to zero on the
+  # subdomains it has not been assigned to, so scaling e_field by this gives a current density
+  # that is zero outside the coil, rather than one of full magnitude in the layer of exterior
+  # elements sharing edges, and so nonzero tangential degrees of freedom, with the coil.
+  [CoilCurrentDensity]
+    type = MFEMGenericFunctorMaterial
+    prop_names = coil_current_density_scale
+    prop_values = current_density_scale
+    block = ${coil_domains}
   []
 []
 
