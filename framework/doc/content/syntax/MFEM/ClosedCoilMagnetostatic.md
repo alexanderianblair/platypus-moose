@@ -172,3 +172,11 @@ be expressed by the gradient of a scalar magnetic potential (up to a sign).
 An example file for this approach can be found below:
 
 !listing test/tests/mfem/submeshes/hphi_magnetostatic.i
+
+## Homogenised Stranded Conductors
+
+The conductor treated above is a solid one, in which the current density is free to redistribute
+itself over the cross-section. For a coil wound from many fine insulated strands, the current
+density is instead of constant magnitude across the cross-section, and the total current rather than
+the loop voltage is usually the quantity imposed. This case is covered in
+[StrandedCoilMagnetostatic.md].
