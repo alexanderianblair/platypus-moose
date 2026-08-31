@@ -25,6 +25,46 @@
       recover = false
     []
   []
+  [MFEMMixedNonLinearDiffusion]
+    design = 'EquationSystem.md MFEMNLDiffusionKernel.md'
+    requirement = 'The system shall have the ability to solve an MFEM problem in which several variables are coupled to each other through nonlinear terms, with those terms contributing to'
+    [off_diagonal_jacobian]
+      detail = 'the off-diagonal Jacobian blocks, through derivative coefficients supplied by the kernels, and to'
+      type = CSVDiff
+      input = nlmixeddiffusion.i
+      csvdiff = 'NLMixedDiffusion_u_sample_0001.csv
+                 NLMixedDiffusion_v_sample_0001.csv'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [nonlinear_residual]
+      detail = 'the residual, reaching the same solution when the same weak forms are instead supplied as bilinear forms whose coefficients depend on the solution and which therefore have to be re-evaluated at each nonlinear iterate.'
+      type = CSVDiff
+      input = nlmixeddiffusion.i
+      cli_args = "Kernels/active='picard_u picard_v' Solvers/newton/max_its=100"
+      csvdiff = 'NLMixedDiffusion_u_sample_0001.csv
+                 NLMixedDiffusion_v_sample_0001.csv'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      prereq = 'MFEMMixedNonLinearDiffusion/off_diagonal_jacobian'
+    []
+  []
+  [MFEMMixedNonLinearDiffusionWithoutOffDiagonalJacobian]
+    design = 'EquationSystem.md MFEMNLDiffusionKernel.md'
+    requirement = 'The system shall converge quadratically on a nonlinear MFEM problem of several coupled variables only when the off-diagonal Jacobian blocks carry the nonlinear coupling, losing convergence within the same iteration budget when the derivative coefficients supplying them are withheld.'
+    type = RunApp
+    input = nlmixeddiffusion.i
+    cli_args = 'Kernels/nl_u/coupled_variables= Kernels/nl_u/dk_dcoupled_coefficients= '
+               'Kernels/nl_v/coupled_variables= Kernels/nl_v/dk_dcoupled_coefficients= '
+               'Outputs/active='
+    expect_out = 'Newton: No convergence!'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+    prereq = 'MFEMMixedNonLinearDiffusion/nonlinear_residual'
+  []
   [MFEMNonLinearDiffusionNonZeroRHS]
     design = 'EquationSystem.md'
     type = XMLDiff

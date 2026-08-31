@@ -43,6 +43,44 @@ method as shown below
 
 where $\mathbf{J}$ is the Jacobian, and $\delta \vec{u}$ is the incremental solution.
 
+## Systems of several variables
+
+When several variables are solved for together, the residual and the Jacobian are block
+structured, with one row per test variable and one column per trial variable,
+
+!equation
+{\sum_j \mathbf{J}_{ij}\left(\vec{u}_n\right)\delta \vec{u}_{n+1,j} = -\vec{R}_i\left(\vec{u}_n\right)}
+
+The blocks $\mathbf{J}_{ij}$ receive contributions from two places. Kernels and integrated boundary
+conditions whose weak form does not depend on the solution are assembled once per solve, into a
+bilinear form for $i = j$ and a mixed bilinear form otherwise. Everything else is assembled into a
+single [`mfem::ParBlockNonlinearForm`](https://docs.mfem.org/html/classmfem_1_1ParBlockNonlinearForm.html)
+spanning all trial variables, which supplies both the nonlinear part of $\vec{R}$ and every
+$\partial\vec{R}_i/\partial\vec{u}_j$, at the current iterate. Off-diagonal blocks may therefore
+carry nonlinear terms.
+
+A kernel contributes to the nonlinear form by supplying one of
+
+- a `mfem::NonlinearFormIntegrator` from `createNLIntegrator()`, whose action on the DoFs of the
+  kernel's own test variable gives the residual, and whose gradient gives the $(i,i)$ block; or
+- a `mfem::BilinearFormIntegrator` from `createNLMixedIntegrator()`, whose action on the DoFs of
+  the kernel's trial variable gives a residual that is linear in those DoFs but whose coefficients
+  depend on the solution, and which gives the corresponding $(i,j)$ block.
+
+The second of these is what routes a kernel with solution-dependent coefficients away from the
+bilinear forms. This matters for correctness rather than for the convergence rate: a bilinear form
+is assembled once per solve, so the coefficients of a term left there are held at the values they
+took when the system was formed, and Newton converges to the solution of that frozen problem
+instead of the intended one.
+
+Kernels supplying either of the above may additionally name, through `getCoupledVariableNames()`,
+the variables their coefficients depend on, and return a `mfem::BilinearFormIntegrator` from
+`createOffDiagJacobianIntegrator()` giving the derivative of their residual with respect to each.
+Those integrators populate the remaining off-diagonal blocks. Supplying them is optional: without
+them the Jacobian is approximate and Newton converges more slowly, but to the same solution.
+
+All variables solved for by a nonlinear equation system must be defined on the same mesh.
+
 !if-end!
 
 !else

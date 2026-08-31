@@ -17,33 +17,24 @@
 namespace Moose::MFEM
 {
 
-EquationSystem::~EquationSystem()
-{
-  DeleteHBlocks();
-  DeleteJacobianBlocks();
-}
+EquationSystem::~EquationSystem() { DeleteHBlocks(); }
 
 void
 EquationSystem::DeleteHBlocks()
 {
+  // _jacobian_blocks aliases the matrices about to be deleted, so it must be dropped first.
+  DeleteJacobianBlocks();
   for (const auto i : make_range(_h_blocks.NumRows()))
     for (const auto j : make_range(_h_blocks.NumCols()))
-    {
-      if (_jacobian_blocks.NumRows() && _jacobian_blocks(i, j) == _h_blocks(i, j))
-        _jacobian_blocks(i, j) = nullptr;
       delete _h_blocks(i, j);
-    }
   _h_blocks.DeleteAll();
 }
 
 void
 EquationSystem::DeleteJacobianBlocks()
 {
-  for (const auto i : make_range(_jacobian_blocks.NumRows()))
-    for (const auto j : make_range(_jacobian_blocks.NumCols()))
-      if (!_h_blocks.NumRows() || _jacobian_blocks(i, j) != _h_blocks(i, j))
-        delete _jacobian_blocks(i, j);
   _jacobian_blocks.DeleteAll();
+  _summed_jacobian_blocks.clear();
 }
 
 bool
@@ -181,6 +172,8 @@ EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
                  " requested by equation system during initialization was "
                  "not found in gridfunctions");
     }
+    // Store pointers to trial FESpaces
+    _trial_pfespaces.push_back(gridfunctions.Get(trial_var_name)->ParFESpace());
     // Create auxiliary gridfunctions for storing essential constraints from Dirichlet conditions
     _var_ess_constraints.emplace_back(
         std::make_unique<mfem::ParGridFunction>(gridfunctions.Get(trial_var_name)->ParFESpace()));
@@ -400,19 +393,12 @@ void
 EquationSystem::ComputeNonlinearResidual(const mfem::Vector & sol, mfem::Vector & residual) const
 {
   mooseAssert(_non_linear, "Should not be calling this method if our forms are not nonlinear");
-  residual = 0.0;
 
   const mfem::BlockVector block_solution(const_cast<mfem::Vector &>(sol), _block_true_offsets);
   SetTrialVariablesFromTrueVectors(block_solution);
 
-  mfem::BlockVector block_residual(residual, _block_true_offsets);
-  for (unsigned int i = 0; i < _test_var_names.size(); i++)
-  {
-    auto & test_var_name = _test_var_names.at(i);
-    auto nlf = _nlfs.GetShared(test_var_name);
-    nlf->Mult(block_solution.GetBlock(i), block_residual.GetBlock(i));
-    block_residual.GetBlock(i).SyncAliasMemory(block_residual);
-  }
+  // Mult zeroes the residual, and its entries on essentially constrained true DoFs, itself.
+  _block_nlf->Mult(sol, residual);
 }
 
 void
@@ -422,26 +408,27 @@ EquationSystem::FormJacobianMatrix(const mfem::Vector & u)
   _jacobian_blocks.SetSize(_test_var_names.size(), _trial_var_names.size());
   _jacobian_blocks = nullptr;
 
-  const mfem::BlockVector update_vector(const_cast<mfem::Vector &>(u), _block_true_offsets);
+  // The block form eliminates essentially constrained true DoFs from its gradient using the same
+  // convention as FormSystemMatrix applies to the linear blocks, so the two are directly additive.
+  mfem::BlockOperator & block_gradient = _block_nlf->GetGradient(u);
+
   for (const auto i : index_range(_test_var_names))
-  {
-    auto test_var_name = _test_var_names.at(i);
-    if (_nlfs.Has(test_var_name))
-    {
-      auto nlf = _nlfs.Get(test_var_name);
-      mfem::HypreParMatrix * nlf_jac =
-          dynamic_cast<mfem::HypreParMatrix *>(&nlf->GetGradient(update_vector.GetBlock(i)));
-      mooseAssert(nlf_jac,
-                  "Jacobian contribution of nonlinear form associated with " + test_var_name +
-                      " is not castable into a HypreParMatrix");
-      _jacobian_blocks(i, i) = mfem::ParAdd(_h_blocks(i, i), nlf_jac);
-    }
-    else
-      _jacobian_blocks(i, i) = _h_blocks(i, i);
     for (const auto j : index_range(_trial_var_names))
-      if (i != j) // nlf->GetGradient only contributes to on-diagonal blocks
-        _jacobian_blocks(i, j) = _h_blocks(i, j);
-  }
+    {
+      const auto * nl_block =
+          dynamic_cast<const mfem::HypreParMatrix *>(&block_gradient.GetBlock(i, j));
+      mooseAssert(nl_block,
+                  "Jacobian block (" + _test_var_names.at(i) + ", " + _trial_var_names.at(j) +
+                      ") of the block nonlinear form is not castable into a HypreParMatrix");
+
+      if (!_h_blocks(i, j))
+        _jacobian_blocks(i, j) = nl_block;
+      else
+      {
+        _summed_jacobian_blocks.emplace_back(mfem::ParAdd(_h_blocks(i, j), nl_block));
+        _jacobian_blocks(i, j) = _summed_jacobian_blocks.back().get();
+      }
+    }
   // Create monolithic matrix
   _jacobian.Reset(mfem::HypreParMatrixFromBlocks(_jacobian_blocks));
 }
@@ -508,17 +495,52 @@ EquationSystem::BuildLinearForms()
 void
 EquationSystem::BuildNonlinearForms()
 {
-  // Register non-linear Action forms
-  for (const auto i : index_range(_test_var_names))
+  BuildBlockNonlinearForm(std::nullopt);
+}
+
+void
+EquationSystem::BuildBlockNonlinearForm(std::optional<mfem::real_t> scale_factor)
+{
+  // The previous form owns the gradient blocks the Jacobian was last assembled from.
+  DeleteJacobianBlocks();
+
+  // Equation systems that track their variables separately, such as complex ones, register no
+  // trial spaces here and so have nothing for a block nonlinear form to act on.
+  if (_trial_pfespaces.empty())
+    return;
+
+  mfem::Array<mfem::ParFiniteElementSpace *> pfespaces(_trial_pfespaces.size());
+  for (const auto i : index_range(_trial_pfespaces))
+    pfespaces[i] = _trial_pfespaces.at(i);
+  _block_nlf = std::make_unique<mfem::ParBlockNonlinearForm>(pfespaces);
+
+  mfem::Array<mfem::Array<int> *> ess_tdof_lists(_ess_tdof_lists.size());
+  for (const auto i : index_range(_ess_tdof_lists))
+    ess_tdof_lists[i] = &_ess_tdof_lists.at(i);
+  // No right hand side vectors to constrain here: the residual is constrained by Mult() instead.
+  mfem::Array<mfem::Vector *> rhs(ess_tdof_lists.Size());
+  rhs = nullptr;
+  _block_nlf->SetEssentialTrueDofs(ess_tdof_lists, rhs);
+
+  ApplyDomainNLIntegrators(scale_factor);
+  ApplyBoundaryNLIntegrators(scale_factor);
+
+  if (!_non_linear)
   {
-    auto test_var_name = _test_var_names.at(i);
-    _nlfs.Register(test_var_name, std::make_shared<mfem::ParNonlinearForm>(_test_pfespaces.at(i)));
-    // Apply kernels
-    auto nlf = _nlfs.GetShared(test_var_name);
-    nlf->SetEssentialTrueDofs(_ess_tdof_lists.at(i));
-    ApplyDomainNLFIntegrators(test_var_name, nlf, _kernels_map, std::nullopt);
-    ApplyBoundaryNLFIntegrators(test_var_name, nlf, _integrated_bc_map, std::nullopt);
+    _block_nlf.reset();
+    return;
   }
+
+  // The block form assembles all blocks over the elements of the mesh of its first space, so a
+  // nonlinear system whose variables live on different meshes cannot be assembled by it.
+  for (const auto i : index_range(_trial_pfespaces))
+    if (_trial_pfespaces.at(i)->GetParMesh() != _trial_pfespaces.at(0)->GetParMesh())
+      mooseError("Nonlinear MFEM equation systems require all variables solved for to be defined "
+                 "on the same mesh, but '",
+                 _trial_var_names.at(i),
+                 "' and '",
+                 _trial_var_names.at(0),
+                 "' are not.");
 }
 
 void
@@ -614,35 +636,24 @@ EquationSystem::ApplyDomainLFIntegrators(
 }
 
 void
-EquationSystem::ApplyDomainNLFIntegrators(
-    const std::string & test_var_name,
-    std::shared_ptr<mfem::ParNonlinearForm> form,
-    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
-    std::optional<mfem::real_t> scale_factor)
+EquationSystem::ApplyDomainNLIntegrators(std::optional<mfem::real_t> scale_factor)
 {
-  if (kernels_map.Has(test_var_name))
-    for (const auto & [trial_var_name, kernels] : kernels_map.GetRef(test_var_name))
-      for (auto & kernel : *kernels)
-        if (auto * integ = kernel->createNLIntegrator())
-        {
-          if (_gradient_required && (trial_var_name != test_var_name))
-            mooseError("Support for off-diagonal MFEM nonlinear domain integrators in conjunction "
-                       "with a nonlinear solver that requires a gradient is not currently "
-                       "implemented. Kernel '",
-                       kernel->name(),
-                       "' contributes to test variable '",
-                       test_var_name,
-                       "' from trial variable '",
-                       trial_var_name,
-                       "'.");
+  for (const auto & test_var_name : _test_var_names)
+  {
+    if (!_kernels_map.Has(test_var_name))
+      continue;
 
+    for (const auto & [trial_var_name, kernels] : _kernels_map.GetRef(test_var_name))
+      for (auto & kernel : *kernels)
+        if (auto integrator =
+                BuildNLBlockIntegrator(*kernel, test_var_name, trial_var_name, scale_factor))
+        {
           _non_linear = true;
-          if (scale_factor.has_value())
-            integ = new NLScaleIntegrator(integ, scale_factor.value(), true);
           kernel->isSubdomainRestricted()
-              ? form->AddDomainIntegrator(std::move(integ), kernel->getSubdomainMarkers())
-              : form->AddDomainIntegrator(std::move(integ));
+              ? _block_nlf->AddDomainIntegrator(integrator.release(), kernel->getSubdomainMarkers())
+              : _block_nlf->AddDomainIntegrator(integrator.release());
         }
+  }
 }
 
 void
@@ -674,37 +685,24 @@ EquationSystem::ApplyBoundaryLFIntegrators(
 }
 
 void
-EquationSystem::ApplyBoundaryNLFIntegrators(
-    const std::string & test_var_name,
-    std::shared_ptr<mfem::ParNonlinearForm> form,
-    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
-        integrated_bc_map,
-    std::optional<mfem::real_t> scale_factor)
+EquationSystem::ApplyBoundaryNLIntegrators(std::optional<mfem::real_t> scale_factor)
 {
-  if (integrated_bc_map.Has(test_var_name))
-    for (const auto & [trial_var_name, bcs] : integrated_bc_map.GetRef(test_var_name))
-      for (auto & bc : *bcs)
-        if (auto * integ = bc->createNLIntegrator())
-        {
-          if (_gradient_required && (test_var_name != trial_var_name))
-            mooseError(
-                "Support for Off-diagonal MFEM nonlinear boundary integrators in conjunction with "
-                "a nonlinear solver that requires a gradient is not currently "
-                "implemented. Boundary condition '",
-                bc->name(),
-                "' contributes to test variable '",
-                test_var_name,
-                "' from trial variable '",
-                trial_var_name,
-                "'.");
+  for (const auto & test_var_name : _test_var_names)
+  {
+    if (!_integrated_bc_map.Has(test_var_name))
+      continue;
 
+    for (const auto & [trial_var_name, bcs] : _integrated_bc_map.GetRef(test_var_name))
+      for (auto & bc : *bcs)
+        if (auto integrator =
+                BuildNLBlockIntegrator(*bc, test_var_name, trial_var_name, scale_factor))
+        {
           _non_linear = true;
-          if (scale_factor.has_value())
-            integ = new NLScaleIntegrator(integ, scale_factor.value(), true);
           bc->isBoundaryRestricted()
-              ? form->AddBoundaryIntegrator(std::move(integ), bc->getBoundaryMarkers())
-              : form->AddBoundaryIntegrator(std::move(integ));
+              ? _block_nlf->AddBoundaryIntegrator(integrator.release(), bc->getBoundaryMarkers())
+              : _block_nlf->AddBoundaryIntegrator(integrator.release());
         }
+  }
 }
 
 const mfem::Vector &
@@ -728,15 +726,14 @@ EquationSystem::BuildBilinearFormForFESpace(const std::string & var_name,
   return blf;
 }
 
-std::shared_ptr<mfem::ParNonlinearForm>
-EquationSystem::BuildNonlinearFormForFESpace(const std::string & var_name,
-                                             mfem::ParFiniteElementSpace & fespace,
-                                             mfem::AssemblyLevel /*assembly_level*/)
+int
+EquationSystem::BlockIndex(const std::string & var_name) const
 {
-  auto nlf = std::make_shared<mfem::ParNonlinearForm>(&fespace);
-  ApplyDomainNLFIntegrators(var_name, nlf, _kernels_map, std::nullopt);
-  ApplyBoundaryNLFIntegrators(var_name, nlf, _integrated_bc_map, std::nullopt);
-  return nlf;
+  for (const auto i : index_range(_trial_var_names))
+    if (_trial_var_names.at(i) == var_name)
+      return i;
+
+  return -1;
 }
 
 mfem::Array<int> &

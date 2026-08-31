@@ -34,6 +34,26 @@ public:
   virtual mfem::BilinearFormIntegrator * createBFIntegrator() { return nullptr; }
   virtual mfem::NonlinearFormIntegrator * createNLIntegrator() { return nullptr; }
 
+  /// Create MFEM integrator whose action on the DoFs of the trial variable gives this kernel's
+  /// residual contribution. Kernels supplying one of these are assembled into the equation
+  /// system's nonlinear form, so that solution-dependent coefficients are re-evaluated at every
+  /// nonlinear iterate, instead of into a (mixed) bilinear form assembled once per solve.
+  /// Ownership managed by the caller.
+  virtual mfem::BilinearFormIntegrator * createNLMixedIntegrator() { return nullptr; }
+
+  /// Get the names of variables, other than the trial variable, that this kernel's residual
+  /// depends on through solution-dependent coefficients.
+  virtual const std::vector<VariableName> & getCoupledVariableNames() const;
+
+  /// Create MFEM integrator giving the derivative of this kernel's residual with respect to the
+  /// named coupled variable, for assembly into an off-diagonal Jacobian block. Ownership managed
+  /// by the caller.
+  virtual mfem::BilinearFormIntegrator *
+  createOffDiagJacobianIntegrator(const VariableName & /*coupled_var_name*/)
+  {
+    return nullptr;
+  }
+
   /// Get name of the test variable labelling the weak form this kernel is added to
   const VariableName & getTestVariableName() const { return _test_var_name; }
 

@@ -53,10 +53,6 @@ MFEMTransient::init()
                "Time Integration scheme \"" + stringify(getTimeScheme()) +
                    "\" is not supported by MFEMTransient Executioner.");
 
-  if (_mfem_problem_data.nonlinear_solver)
-    _mfem_problem_data.eqn_system->SetGradientRequired(
-        _mfem_problem_data.nonlinear_solver->RequiresGradient());
-
   _mfem_problem_data.eqn_system->SetCoefficientManager(_mfem_problem_data.coefficients);
 
   // Set up initial conditions

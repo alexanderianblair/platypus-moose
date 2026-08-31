@@ -23,4 +23,11 @@ MFEMIntegratedBC::MFEMIntegratedBC(const InputParameters & parameters)
 {
 }
 
+const std::vector<VariableName> &
+MFEMIntegratedBC::getCoupledVariableNames() const
+{
+  static const std::vector<VariableName> no_coupled_variables;
+  return no_coupled_variables;
+}
+
 #endif

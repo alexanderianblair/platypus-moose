@@ -36,9 +36,6 @@ public:
   /// Configure the linear solver used inside the nonlinear solve.
   virtual void SetLinearSolver(mfem::Solver & solver) = 0;
 
-  /// Return whether this nonlinear solver requires Jacobian/gradient information from the operator.
-  virtual bool RequiresGradient() const = 0;
-
   /// Return whether this nonlinear solver requires an externally configured MFEM linear solver.
   virtual bool RequiresExternalLinearSolver() const = 0;
 };

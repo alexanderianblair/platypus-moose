@@ -77,10 +77,6 @@ MFEMSteady::init()
   _mfem_problem.execute(EXEC_PRE_MULTIAPP_SETUP);
   _mfem_problem.initialSetup();
 
-  if (_mfem_problem_data.nonlinear_solver)
-    _mfem_problem_data.eqn_system->SetGradientRequired(
-        _mfem_problem_data.nonlinear_solver->RequiresGradient());
-
   _mfem_problem_data.eqn_system->SetCoefficientManager(_mfem_problem_data.coefficients);
 
   // Set up initial conditions

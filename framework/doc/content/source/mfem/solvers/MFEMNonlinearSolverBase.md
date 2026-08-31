@@ -13,8 +13,7 @@ Classes derived from `MFEMNonlinearSolverBase` implement nonlinear solve strateg
 
 `SetOperator` is called before a solve to supply the nonlinear operator, which corresponds to the MOOSE-MFEM `EquationSystem` object. For solvers that
 report `RequiresExternalLinearSolver() == true`, `SetLinearSolver` is also called to supply the
-configured linear solver for inner linear solves. Solvers that return `RequiresGradient() == true`
-will additionally receive gradient information from the operator.
+configured linear solver for inner linear solves.
 
 !if-end!
 

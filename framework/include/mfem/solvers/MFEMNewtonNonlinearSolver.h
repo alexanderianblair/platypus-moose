@@ -26,7 +26,6 @@ public:
   void ConstructSolver() override;
 
   void SetLinearSolver(mfem::Solver & solver) override;
-  bool RequiresGradient() const override { return true; }
   bool RequiresExternalLinearSolver() const override { return true; }
 };
 

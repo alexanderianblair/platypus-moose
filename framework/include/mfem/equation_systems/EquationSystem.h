@@ -20,7 +20,7 @@
 #include "MFEMKernel.h"
 #include "MFEMMixedBilinearFormKernel.h"
 #include "ScaleIntegrator.h"
-#include "NLScaleIntegrator.h"
+#include "NLBlockIntegrator.h"
 
 namespace Moose::MFEM
 {
@@ -82,9 +82,6 @@ public:
   /// Update variable from solution vector after solve
   virtual void SetTrialVariablesFromTrueVectors(const mfem::BlockVector & trueX) const;
 
-  /// Set whether an external object (such as a nonlinear solver) requires Jacobian information for this EquationSystem.
-  void SetGradientRequired(bool requires_gradient) { _gradient_required = requires_gradient; }
-
   /// Set the coefficient manager to notify when trial variables are updated, so that stored
   /// projections of solution-dependent coefficients are invalidated.
   void SetCoefficientManager(CoefficientManager & coefficients)
@@ -134,15 +131,6 @@ public:
                               mfem::AssemblyLevel assembly_level);
 
   /**
-   * Build a fresh ParNonlinearForm on the given FESpace using the same kernels as the main
-   * system's nonlinear form for var_name. Caller owns the returned form.
-   */
-  std::shared_ptr<mfem::ParNonlinearForm>
-  BuildNonlinearFormForFESpace(const std::string & var_name,
-                               mfem::ParFiniteElementSpace & fespace,
-                               mfem::AssemblyLevel assembly_level);
-
-  /**
    * Return the essential boundary attribute marker array for a given trial variable.
    * The returned array has size == pmesh.bdr_attributes.Max() with 1 at essential boundaries.
    */
@@ -172,14 +160,13 @@ protected:
   /// Set trial variable names from subset of coupled variables that have an associated test variable.
   virtual void SetTrialVariableNames();
 
-  /// Deletes the HypreParMatrix associated with any pointer stored in _h_blocks,
-  /// and then proceeds to delete all dynamically allocated memory for _h_blocks
-  /// itself, resetting all dimensions to zero.
+  /// Deletes the HypreParMatrix associated with any pointer stored in _h_blocks, and then
+  /// proceeds to delete all dynamically allocated memory for _h_blocks itself, resetting all
+  /// dimensions to zero. Also drops _jacobian_blocks, which may alias the deleted matrices.
   void DeleteHBlocks();
 
-  /// Deletes the HypreParMatrix associated with any pointer stored in _jacobian_blocks,
-  /// and then proceeds to delete all dynamically allocated memory for _jacobian_blocks
-  /// itself, resetting all dimensions to zero.
+  /// Drops the non-owning pointers stored in _jacobian_blocks, resetting all dimensions to zero,
+  /// and deletes the summed blocks owned by this EquationSystem.
   void DeleteJacobianBlocks();
 
   bool VectorContainsName(const std::vector<std::string> & the_vector,
@@ -198,6 +185,16 @@ protected:
   virtual void BuildLinearForms();
   /// Build non-linear action forms
   virtual void BuildNonlinearForms();
+  /**
+   * Build the block nonlinear form spanning all trial variables, holding the contributions of
+   * every kernel and integrated BC whose residual must be re-evaluated at each nonlinear iterate.
+   * The form supplies both the nonlinear part of the residual and all of its Jacobian blocks,
+   * on- and off-diagonal.
+   *
+   * @param scale_factor Factor applied to all contributions, used by time dependent systems to
+   * scale the operator acting on the state by the timestep.
+   */
+  void BuildBlockNonlinearForm(std::optional<mfem::real_t> scale_factor);
   /// Build bilinear forms (diagonal Jacobian contributions)
   virtual void BuildBilinearForms();
   /// Build mixed bilinear forms (off-diagonal Jacobian contributions)
@@ -244,14 +241,9 @@ protected:
       NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map);
 
   /**
-   * Apply domain NonlinearFormIntegrators from kernels to the nonlinear form associated with the
-   * supplied test variable.
+   * Add the nonlinear domain contributions of all kernels to the block nonlinear form.
    */
-  void ApplyDomainNLFIntegrators(
-      const std::string & test_var_name,
-      std::shared_ptr<mfem::ParNonlinearForm> form,
-      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> & kernels_map,
-      std::optional<mfem::real_t> scale_factor = std::nullopt);
+  void ApplyDomainNLIntegrators(std::optional<mfem::real_t> scale_factor);
 
   /**
    * Template method for applying BilinearFormIntegrators on boundaries from integrated boundary
@@ -277,15 +269,31 @@ protected:
           integrated_bc_map);
 
   /**
-   * Apply boundary NonlinearFormIntegrators from integrated boundary conditions to the nonlinear
-   * form associated with the supplied test variable.
+   * Add the nonlinear boundary contributions of all integrated boundary conditions to the block
+   * nonlinear form.
    */
-  void ApplyBoundaryNLFIntegrators(
-      const std::string & test_var_name,
-      std::shared_ptr<mfem::ParNonlinearForm> form,
-      NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>> &
-          integrated_bc_map,
-      std::optional<mfem::real_t> scale_factor = std::nullopt);
+  void ApplyBoundaryNLIntegrators(std::optional<mfem::real_t> scale_factor);
+
+  /**
+   * Build the adaptor presenting the nonlinear contributions of a single kernel or integrated
+   * boundary condition to the block nonlinear form. Returns nullptr if the object supplies no
+   * nonlinear contribution.
+   *
+   * @param object The kernel or integrated boundary condition to build the adaptor for.
+   * @param test_var_name Name of the test variable labelling the row the object contributes to.
+   * @param trial_var_name Name of the trial variable whose DoFs the object's integrator acts on.
+   * @param scale_factor Factor applied to all contributions of the object.
+   */
+  template <class ObjectType>
+  std::unique_ptr<NLBlockIntegrator>
+  BuildNLBlockIntegrator(ObjectType & object,
+                         const std::string & test_var_name,
+                         const std::string & trial_var_name,
+                         std::optional<mfem::real_t> scale_factor);
+
+  /// @returns the index of the block of the named trial variable, or -1 if it has no block in
+  /// this equation system.
+  int BlockIndex(const std::string & var_name) const;
 
   /// Names of all trial variables of kernels and boundary conditions
   /// added to this EquationSystem.
@@ -302,21 +310,31 @@ protected:
   std::vector<std::string> _test_var_names;
   /// Pointers to finite element spaces associated with test variables.
   std::vector<mfem::ParFiniteElementSpace *> _test_pfespaces;
+  /// Pointers to finite element spaces associated with trial variables.
+  std::vector<mfem::ParFiniteElementSpace *> _trial_pfespaces;
   /// Pointers to finite element spaces associated with coupled variables.
   std::vector<mfem::ParFiniteElementSpace *> _coupled_pfespaces;
 
   // Components of weak form, named according to test variable
   NamedFieldsMap<mfem::ParBilinearForm> _blfs;
   NamedFieldsMap<mfem::ParLinearForm> _lfs;
-  NamedFieldsMap<mfem::ParNonlinearForm> _nlfs;
   NamedFieldsMap<NamedFieldsMap<mfem::ParMixedBilinearForm>> _mblfs; // named according to trial var
+  /// Nonlinear form spanning all trial variables, holding every contribution whose residual must
+  /// be re-evaluated at each nonlinear iterate. Null when the system has no such contributions.
+  std::unique_ptr<mfem::ParBlockNonlinearForm> _block_nlf;
 
   /// Gridfunctions holding essential constraints from Dirichlet BCs
   std::vector<std::unique_ptr<mfem::ParGridFunction>> _var_ess_constraints;
   std::vector<mfem::Array<int>> _ess_tdof_lists;
   std::vector<mfem::Array<int>> _ess_markers;
 
-  mfem::Array2D<const mfem::HypreParMatrix *> _h_blocks, _jacobian_blocks;
+  mfem::Array2D<const mfem::HypreParMatrix *> _h_blocks;
+  /// Non-owning pointers to the blocks the Jacobian is assembled from. Each is owned by _h_blocks,
+  /// by the block nonlinear form, or by _summed_jacobian_blocks below.
+  mfem::Array2D<const mfem::HypreParMatrix *> _jacobian_blocks;
+  /// Jacobian blocks receiving both a linear and a nonlinear contribution, which have to be summed
+  /// into a new matrix owned here.
+  std::vector<std::unique_ptr<mfem::HypreParMatrix>> _summed_jacobian_blocks;
   /// Arrays to store kernels to act on each component of weak form.
   /// Named according to test and trial variables.
   NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>> _kernels_map;
@@ -341,8 +359,6 @@ protected:
   mutable const mfem::Vector * _linearization_point = nullptr;
   // Boolean indicating if EquationSystem contains nonlinear integrators
   bool _non_linear = false;
-  // Whether an external object (e.g. solver) requires Jacobian/gradient information.
-  bool _gradient_required = false;
   // Coefficient manager notified when trial variables are updated, so that stored projections
   // of solution-dependent coefficients are invalidated.
   CoefficientManager * _coefficient_manager = nullptr;
@@ -412,6 +428,89 @@ EquationSystem::ApplyBoundaryBLFIntegrators(
       }
     }
   }
+}
+
+template <class ObjectType>
+std::unique_ptr<NLBlockIntegrator>
+EquationSystem::BuildNLBlockIntegrator(ObjectType & object,
+                                       const std::string & test_var_name,
+                                       const std::string & trial_var_name,
+                                       std::optional<mfem::real_t> scale_factor)
+{
+  mfem::NonlinearFormIntegrator * nl_integ = object.createNLIntegrator();
+  mfem::BilinearFormIntegrator * mixed_integ = object.createNLMixedIntegrator();
+  if (nl_integ && mixed_integ)
+    mooseError("'",
+               object.name(),
+               "' supplies both a nonlinear integrator and a solution-dependent mixed integrator "
+               "for its residual. It must supply only one of the two.");
+
+  const auto & coupled_var_names = object.getCoupledVariableNames();
+  if (!nl_integ && !mixed_integ)
+  {
+    if (!coupled_var_names.empty())
+      mooseError("'",
+                 object.name(),
+                 "' declares coupled variables but supplies no integrator to evaluate its "
+                 "residual at the current nonlinear iterate.");
+    return nullptr;
+  }
+
+  const auto row = BlockIndex(test_var_name);
+  if (row < 0)
+    mooseError("'",
+               object.name(),
+               "' supplies a nonlinear contribution to the equation for test variable '",
+               test_var_name,
+               "', which is not solved for by this equation system.");
+
+  auto integrator = std::make_unique<NLBlockIntegrator>(row, scale_factor.value_or(1.0));
+
+  if (nl_integ)
+  {
+    // A NonlinearFormIntegrator acts on, and differentiates with respect to, the DoFs of a single
+    // finite element space, so it can only supply the residual of its own test variable.
+    if (trial_var_name != test_var_name)
+      mooseError("'",
+                 object.name(),
+                 "' supplies a nonlinear integrator for test variable '",
+                 test_var_name,
+                 "' acting on the DoFs of trial variable '",
+                 trial_var_name,
+                 "'. Nonlinear integrators can only act on the DoFs of their own test variable; "
+                 "supply the contribution through createNLMixedIntegrator() instead.");
+    integrator->SetDiagonalIntegrator(nl_integ);
+  }
+  else
+  {
+    const auto mixed_col = BlockIndex(trial_var_name);
+    if (mixed_col < 0)
+      mooseError("'",
+                 object.name(),
+                 "' supplies a solution-dependent mixed integrator acting on the DoFs of '",
+                 trial_var_name,
+                 "', which is not solved for by this equation system.");
+    integrator->SetMixedIntegrator(mixed_col, mixed_integ);
+  }
+
+  for (const auto & coupled_var_name : coupled_var_names)
+  {
+    const auto col = BlockIndex(coupled_var_name);
+    if (col < 0)
+      mooseError("'",
+                 object.name(),
+                 "' declares a dependence on coupled variable '",
+                 coupled_var_name,
+                 "', which is not solved for by this equation system and so has no Jacobian "
+                 "block. Only variables solved for alongside '",
+                 test_var_name,
+                 "' need to be declared; a dependence on any other variable is already carried by "
+                 "the coefficients themselves.");
+    if (auto * integ = object.createOffDiagJacobianIntegrator(coupled_var_name))
+      integrator->AddJacobianIntegrator(col, integ);
+  }
+
+  return integrator;
 }
 
 } // namespace Moose::MFEM

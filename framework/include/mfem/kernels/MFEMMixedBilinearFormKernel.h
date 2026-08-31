@@ -31,14 +31,30 @@ public:
   /// Create MFEM mixed bilinear form integrator. Ownership managed by the caller.
   virtual mfem::BilinearFormIntegrator * createMBFIntegrator() { return nullptr; }
 
-  /// We override this to optionally transpose the mixed bilinear form integrator.
+  /// We override this to optionally transpose the mixed bilinear form integrator. Returns nullptr
+  /// for kernels declaring coupled variables, whose integrator is supplied to the equation
+  /// system's nonlinear form by createNLMixedIntegrator() instead.
   virtual mfem::BilinearFormIntegrator * createBFIntegrator() override;
 
+  virtual mfem::BilinearFormIntegrator * createNLMixedIntegrator() override;
+
+  virtual const std::vector<VariableName> & getCoupledVariableNames() const override
+  {
+    return _coupled_var_names;
+  }
+
 protected:
+  /// Build the integrator this kernel contributes, transposed if requested. Ownership managed by
+  /// the caller.
+  mfem::BilinearFormIntegrator * buildIntegrator();
+
   /// Name of the trial variable that the kernel is applied to.
   const VariableName _trial_var_name;
   /// Bool controlling whether to add the transpose of the integrator to the system
   bool _transpose;
+  /// Names of the variables solved for that this kernel's coefficients depend on. When any are
+  /// declared, the kernel is assembled into the equation system's nonlinear form.
+  const std::vector<VariableName> _coupled_var_names;
 };
 
 #endif
