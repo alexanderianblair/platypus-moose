@@ -1,0 +1,63 @@
+[Tests]
+  design = 'MFEMCohomologyCutIC.md'
+  issues = '#00000'
+  [MFEMCohomologyCutSource]
+    type = CSVDiff
+    input = cohomology_cut_source.i
+    csvdiff = 'OutputData/CohomologyCutSource.csv'
+    requirement = 'MOOSE shall be able to set an H(curl) conforming variable from a cohomology '
+                  'basis cochain computed by Gmsh and stored in the mesh file, giving a source '
+                  'field that is curl-free on the domain the cochain was computed on.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [MFEMCohomologyCutMagnetostatic]
+    type = CSVDiff
+    input = cohomology_cut_magnetostatic.i
+    csvdiff = 'OutputData/CohomologyCutMagnetostatic.csv'
+    # CurlSquared is the round-off left in a field that is curl-free by construction, so it is
+    # compared as zero rather than to its value; a real violation would be many orders larger,
+    # of the order of the magnetic energy itself.
+    abs_zero = 1e-20
+    requirement = 'MOOSE shall be able to impose a global current constraint on a topologically '
+                  'closed conductor using a cohomology basis cochain computed by Gmsh as the '
+                  'source field of an H-phi magnetostatic problem, without a cut surface being '
+                  'present in the geometry.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [MFEMCohomologyCutMissingGroup]
+    type = RunException
+    input = cohomology_cut_source.i
+    cli_args = "ICs/cut/cut_name='H^1{9}9'"
+    expect_err = 'No physical group named .* was found in Gmsh mesh file'
+    requirement = 'MOOSE shall report an error if the physical group naming a cohomology basis '
+                  'cochain is not present in the Gmsh mesh file.'
+    capabilities = 'mfem'
+    recover = false
+  []
+  [MFEMCohomologyCutSubMesh]
+    type = RunException
+    input = cohomology_cut_magnetostatic.i
+    cli_args = 'ICs/cut/variable=cut_field'
+    expect_err = 'cannot be set on a variable defined on a submesh'
+    requirement = 'MOOSE shall report an error if a cohomology basis cochain is set on a variable '
+                  'defined on a submesh, whose local vertex numbering does not fix a consistent '
+                  'edge orientation across ranks.'
+    capabilities = 'mfem'
+    recover = false
+  []
+  [MFEMCohomologyCutRefinedMesh]
+    type = RunException
+    input = cohomology_cut_source.i
+    cli_args = 'Mesh/uniform_refine=1'
+    expect_err = 'cannot be applied to a refined mesh'
+    requirement = 'MOOSE shall report an error if a cohomology basis cochain read from a Gmsh '
+                  'mesh file is applied to a mesh that has been refined after being read, since '
+                  'the cochain is a value per edge of the mesh as Gmsh wrote it.'
+    capabilities = 'mfem'
+    recover = false
+  []
+[]
