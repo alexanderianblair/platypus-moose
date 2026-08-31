@@ -18,8 +18,10 @@ void
 ProblemOperator::SetGridFunctions()
 {
   ProblemOperatorBase::SetGridFunctions();
-  width = _block_true_offsets_trial[_trial_variables.size()];
-  height = _block_true_offsets_test[_test_variables.size()];
+  // Last(), rather than the field variable count, so that any trailing scalar unknown
+  // blocks are counted in the operator size.
+  width = _block_true_offsets_trial.Last();
+  height = _block_true_offsets_test.Last();
 }
 
 } // namespace Moose::MFEM

@@ -27,6 +27,8 @@ class ParComplexGridFunction;
 class ParFiniteElementSpaceHierarchy;
 }
 
+class MFEMScalarVariable;
+
 namespace Moose::MFEM
 {
 
@@ -242,6 +244,7 @@ using SubMeshes = NamedFieldsMap<mfem::ParSubMesh>;
 using GridFunctions = NamedFieldsMap<mfem::ParGridFunction>;
 using ComplexGridFunctions = NamedFieldsMap<mfem::ParComplexGridFunction>;
 using FESpaceHierarchies = NamedFieldsMap<mfem::ParFiniteElementSpaceHierarchy>;
+using ScalarVariables = NamedFieldsMap<MFEMScalarVariable>;
 
 } // namespace Moose::MFEM
 

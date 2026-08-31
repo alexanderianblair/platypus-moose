@@ -10,6 +10,7 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "ProblemOperatorBase.h"
+#include "MFEMScalarVariable.h"
 
 class MFEMProblem;
 
@@ -26,19 +27,28 @@ ProblemOperatorBase::SetGridFunctions()
 {
   _trial_variables = _problem_data.gridfunctions.Get(_trial_var_names);
   _test_variables = _problem_data.gridfunctions.Get(_test_var_names);
+  _scalar_variables = GetScalarBlockVariables();
 
-  // Set operator size and block structure for trial spaces
-  _block_true_offsets_trial.SetSize(_trial_variables.size() + 1);
+  // Set operator size and block structure for trial spaces. Scalar variables hold a single
+  // global DoF apiece rather than a field, and take one block each after the field blocks.
+  _block_true_offsets_trial.SetSize(_trial_variables.size() + _scalar_variables.size() + 1);
   _block_true_offsets_trial[0] = 0;
   for (const auto ind : index_range(_trial_variables))
     _block_true_offsets_trial[ind + 1] = _trial_variables.at(ind)->ParFESpace()->TrueVSize();
+  for (const auto ind : index_range(_scalar_variables))
+    _block_true_offsets_trial[_trial_variables.size() + ind + 1] =
+        _scalar_variables.at(ind)->trueVSize();
   _block_true_offsets_trial.PartialSum();
 
-  // Set operator size and block structure for test spaces
-  _block_true_offsets_test.SetSize(_test_variables.size() + 1);
+  // Set operator size and block structure for test spaces. Each scalar unknown contributes
+  // one equation as well as one unknown.
+  _block_true_offsets_test.SetSize(_test_variables.size() + _scalar_variables.size() + 1);
   _block_true_offsets_test[0] = 0;
   for (const auto ind : index_range(_test_variables))
     _block_true_offsets_test[ind + 1] = _test_variables.at(ind)->ParFESpace()->TrueVSize();
+  for (const auto ind : index_range(_scalar_variables))
+    _block_true_offsets_test[_test_variables.size() + ind + 1] =
+        _scalar_variables.at(ind)->trueVSize();
   _block_true_offsets_test.PartialSum();
 
   _true_x.Update(_block_true_offsets_trial);
@@ -51,6 +61,10 @@ ProblemOperatorBase::Init(mfem::BlockVector & X)
   X.Update(_block_true_offsets_trial);
   for (const auto i : index_range(_trial_variables))
     X.GetBlock(i) = _trial_variables[i]->GetTrueVector();
+  // Scalar unknowns start from their current value, which acts as the initial guess an
+  // iterative solver refines.
+  for (const auto i : index_range(_scalar_variables))
+    X.GetBlock(_trial_variables.size() + i) = _scalar_variables[i]->getValue();
   // Sync the flags from the global vector with the sub-vectors (copies to global vector location)
   X.SyncFromBlocks();
 

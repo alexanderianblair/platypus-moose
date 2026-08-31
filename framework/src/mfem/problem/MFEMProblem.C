@@ -23,6 +23,8 @@
 #include "MFEMConstraint.h"
 #include "MFEMEssentialConstraint.h"
 #include "MFEMComplexEssentialConstraint.h"
+#include "MFEMIntegralConstraint.h"
+#include "MFEMScalarVariable.h"
 #include "ComplexEquationSystem.h"
 #include "DependencyResolver.h"
 #include "MooseUtils.h"
@@ -371,6 +373,16 @@ MFEMProblem::addVariable(const std::string & var_type,
                          InputParameters & parameters)
 {
   validateVariableNumericType(var_type, var_name);
+
+  // A scalar variable holds a single global DoF rather than a field, so it has neither a
+  // gridfunction nor a time derivative.
+  if (var_type == "MFEMScalarVariable")
+  {
+    getProblemData().scalar_variables.Register(
+        var_name, addObject<MFEMScalarVariable>(var_type, var_name, parameters).front());
+    return;
+  }
+
   addGridFunction(var_type, var_name, parameters);
   // MOOSE variables store DoFs for the trial variable and its time derivatives up to second order;
   // MFEM GridFunctions store data for only one set of DoFs each, so we must add additional
@@ -383,6 +395,17 @@ MFEMProblem::addVariable(const std::string & var_type,
                                                                       time_derivative_var_name);
     addGridFunction(var_type, time_derivative_var_name, parameters);
   }
+}
+
+MFEMScalarVariable &
+MFEMProblem::getMFEMScalarVariable(const std::string & name)
+{
+  if (!getProblemData().scalar_variables.Has(name))
+    mooseError("No MFEMScalarVariable named '",
+               name,
+               "' has been added to the problem. Scalar variables are added in the [Variables] "
+               "block with type = MFEMScalarVariable.");
+  return getProblemData().scalar_variables.GetRef(name);
 }
 
 void
@@ -430,6 +453,14 @@ MFEMProblem::addAuxVariable(const std::string & var_type,
                             const std::string & var_name,
                             InputParameters & parameters)
 {
+  // A scalar variable is only ever solved for as the multiplier of an integral constraint,
+  // and nothing computes one, so it has no meaning as an auxiliary variable.
+  if (var_type == "MFEMScalarVariable")
+    mooseError("MFEM scalar variable '",
+               var_name,
+               "' cannot be added as an auxiliary variable. Scalar variables are solved for as "
+               "the multipliers of integral constraints, and belong in the [Variables] block.");
+
   // We handle MFEM AuxVariables just like MFEM Variables, except
   // we do not add additional GridFunctions for time derivatives.
   addGridFunction(var_type, var_name, parameters);
@@ -453,8 +484,29 @@ MFEMProblem::addConstraint(const std::string & constraint_name,
   // casts can succeed and each equation system is handed only the kind it reads.
   auto real_constraint = std::dynamic_pointer_cast<MFEMEssentialConstraint>(constraint);
   auto complex_constraint = std::dynamic_pointer_cast<MFEMComplexEssentialConstraint>(constraint);
+  auto integral_constraint = std::dynamic_pointer_cast<MFEMIntegralConstraint>(constraint);
 
-  if (complex_constraint)
+  if (integral_constraint)
+  {
+    // Integral constraints add multiplier blocks to the real block system, which the
+    // complex equation system does not assemble.
+    if (std::dynamic_pointer_cast<Moose::MFEM::ComplexEquationSystem>(getProblemData().eqn_system))
+      mooseError("Constraint '",
+                 name,
+                 "' of type '",
+                 constraint_name,
+                 "' is an integral constraint, which is not supported in a complex "
+                 "(time-harmonic) problem.");
+
+    auto eqsys =
+        std::dynamic_pointer_cast<Moose::MFEM::EquationSystem>(getProblemData().eqn_system);
+    if (!eqsys)
+      mooseError("Cannot add constraint with name '",
+                 name,
+                 "' because there is no corresponding equation system.");
+    eqsys->AddIntegralConstraint(std::move(integral_constraint));
+  }
+  else if (complex_constraint)
   {
     auto eqsys =
         std::dynamic_pointer_cast<Moose::MFEM::ComplexEquationSystem>(getProblemData().eqn_system);

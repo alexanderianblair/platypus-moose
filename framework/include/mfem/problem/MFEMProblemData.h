@@ -44,6 +44,7 @@ public:
   Moose::MFEM::GridFunctions gridfunctions;
   Moose::MFEM::TimeDerivativeMap time_derivative_map;
   Moose::MFEM::ComplexGridFunctions cmplx_gridfunctions;
+  Moose::MFEM::ScalarVariables scalar_variables;
 
   std::string mode_separator{"_"};
 

@@ -10,12 +10,34 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "MFEMConstraintUtils.h"
+#include "MooseError.h"
 #include "libmesh/int_range.h"
 
 #include <vector>
 
 namespace
 {
+
+/**
+ * Hypre partitioning array describing a single global degree of freedom owned by rank 0.
+ * Under the assumed partition each rank supplies only its own [first, last) range;
+ * otherwise the array holds the first index owned by every rank followed by the global
+ * size.
+ */
+std::vector<HYPRE_BigInt>
+singleDofPartitioning(MPI_Comm comm)
+{
+  int myid, num_procs;
+  MPI_Comm_rank(comm, &myid);
+  MPI_Comm_size(comm, &num_procs);
+
+  if (HYPRE_AssumedPartitionCheck())
+    return {myid == 0 ? 0 : 1, 1};
+
+  std::vector<HYPRE_BigInt> partitioning(num_procs + 1, 1);
+  partitioning[0] = 0;
+  return partitioning;
+}
 
 /**
  * Table mapping a mesh element attribute to whether the constraint acts there.
@@ -178,6 +200,57 @@ zeroTrueDofs(mfem::ParGridFunction & gf, const mfem::Array<int> & tdofs)
   for (const auto tdof : tdofs)
     true_dofs(tdof) = 0.0;
   gf.SetFromTrueVector();
+}
+
+mfem::HypreParMatrix *
+columnMatrix(mfem::ParFiniteElementSpace & pfes, const mfem::Vector & column)
+{
+  MPI_Comm comm = pfes.GetComm();
+  const int num_rows = pfes.GetTrueVSize();
+  mooseAssert(column.Size() == num_rows,
+              "Column vector size does not match the true dof count of its FE space.");
+
+  // One entry per owned row, every one of them in the single global column zero. Entries
+  // that happen to be zero are kept: the sparsity pattern costs one entry per row and
+  // dropping them would need a second pass to build the row offsets.
+  std::vector<int> row_offsets(num_rows + 1);
+  for (const auto i : make_range(num_rows + 1))
+    row_offsets[i] = i;
+  const std::vector<HYPRE_BigInt> column_indices(num_rows, 0);
+  const std::vector<HYPRE_BigInt> column_partitioning = singleDofPartitioning(comm);
+
+  return new mfem::HypreParMatrix(comm,
+                                  num_rows,
+                                  pfes.GlobalTrueVSize(),
+                                  1,
+                                  row_offsets.data(),
+                                  column_indices.data(),
+                                  column.GetData(),
+                                  pfes.GetTrueDofOffsets(),
+                                  column_partitioning.data());
+}
+
+mfem::HypreParMatrix *
+scalarMatrix(MPI_Comm comm, mfem::real_t value)
+{
+  int myid;
+  MPI_Comm_rank(comm, &myid);
+  const bool owns_dof = (myid == 0);
+
+  const std::vector<int> row_offsets = owns_dof ? std::vector<int>{0, 1} : std::vector<int>{0};
+  const std::vector<HYPRE_BigInt> column_indices(owns_dof ? 1 : 0, 0);
+  const std::vector<mfem::real_t> data(owns_dof ? 1 : 0, value);
+  const std::vector<HYPRE_BigInt> partitioning = singleDofPartitioning(comm);
+
+  return new mfem::HypreParMatrix(comm,
+                                  owns_dof ? 1 : 0,
+                                  1,
+                                  1,
+                                  row_offsets.data(),
+                                  column_indices.data(),
+                                  data.data(),
+                                  partitioning.data(),
+                                  partitioning.data());
 }
 }
 

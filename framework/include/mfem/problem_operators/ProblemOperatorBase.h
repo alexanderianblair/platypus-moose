@@ -60,6 +60,14 @@ public:
   virtual void Init(mfem::BlockVector & X);
   virtual void Solve() = 0;
 
+  /**
+   * Scalar variables holding a single global DoF each, which take one block apiece of the
+   * solution and residual vectors after the blocks of the field variables.
+   * @returns the scalar variables in block order; empty unless an equation system with
+   * integral constraints supplies them.
+   */
+  virtual std::vector<MFEMScalarVariable *> GetScalarBlockVariables() const { return {}; }
+
   mfem::Array<int> _block_true_offsets_test;
   mfem::Array<int> _block_true_offsets_trial;
 
@@ -89,6 +97,8 @@ protected:
   std::vector<std::string> _test_var_names;
   std::vector<mfem::ParGridFunction *> _trial_variables;
   std::vector<mfem::ParGridFunction *> _test_variables;
+  /// Scalar unknowns occupying the trailing single-DoF blocks, in block order.
+  std::vector<MFEMScalarVariable *> _scalar_variables;
   mfem::Vector * _trial_true_vector = nullptr;
 };
 }

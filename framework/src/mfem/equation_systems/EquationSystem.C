@@ -11,6 +11,8 @@
 
 #include "EquationSystem.h"
 #include "MFEMLinearSolverBase.h"
+#include "MFEMConstraintUtils.h"
+#include "MFEMScalarVariable.h"
 #include "CoefficientManager.h"
 #include "libmesh/int_range.h"
 
@@ -164,6 +166,35 @@ EquationSystem::AddEssentialConstraint(std::shared_ptr<MFEMEssentialConstraint> 
 }
 
 void
+EquationSystem::AddIntegralConstraint(std::shared_ptr<MFEMIntegralConstraint> constraint)
+{
+  // Each constraint owns one block of the system, so it needs a scalar variable of its own
+  // to hold the multiplier that block solves for.
+  for (const auto & existing : _integral_constraints)
+    if (existing->getScalarVariableName() == constraint->getScalarVariableName())
+      mooseError("Integral constraints '",
+                 existing->name(),
+                 "' and '",
+                 constraint->name(),
+                 "' both use scalar variable '",
+                 constraint->getScalarVariableName(),
+                 "' to hold their multiplier. Each integral constraint requires its own scalar "
+                 "variable.");
+
+  _integral_constraints.push_back(std::move(constraint));
+}
+
+std::vector<MFEMScalarVariable *>
+EquationSystem::GetScalarBlockVariables() const
+{
+  std::vector<MFEMScalarVariable *> scalar_variables;
+  scalar_variables.reserve(_integral_constraints.size());
+  for (const auto & constraint : _integral_constraints)
+    scalar_variables.push_back(&constraint->getScalarVariable());
+  return scalar_variables;
+}
+
+void
 EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
                      Moose::MFEM::ComplexGridFunctions & /*cmplx_gridfunctions*/,
                      mfem::AssemblyLevel assembly_level)
@@ -292,6 +323,24 @@ EquationSystem::FormLinearSystem(mfem::OperatorHandle & op,
   mooseAssert(_test_var_names.size() == _trial_var_names.size(),
               "Number of test and trial variables must be the same for block matrix assembly.");
 
+  if (!_integral_constraints.empty())
+  {
+    // The multiplier blocks are added to the assembled block matrix, so there is nothing to
+    // attach them to without it. They also make the system indefinite, which the nonlinear
+    // machinery's Jacobian blocks do not account for.
+    if (_assembly_level != mfem::AssemblyLevel::LEGACY)
+      mooseError("Integral constraints in an MFEM problem require legacy assembly. Remove "
+                 "'assembly_level' from the executioner, or set it to 'legacy'.");
+    if (_non_linear)
+      mooseError("Integral constraints in an MFEM problem are not supported alongside nonlinear "
+                 "kernels or integrated boundary conditions.");
+    if (IsEigen())
+      mooseError("Integral constraints are not supported in MFEM eigenvalue problems, which have "
+                 "no right hand side for the constraint to be imposed against.");
+    if (IsTimeDependent())
+      mooseError("Integral constraints are not currently supported in transient MFEM problems.");
+  }
+
   if (_assembly_level == mfem::AssemblyLevel::LEGACY)
     FormSystemMatrix(op, trueX, trueRHS);
   else
@@ -333,9 +382,11 @@ EquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
                                  mfem::BlockVector & trueX,
                                  mfem::BlockVector & trueRHS)
 {
-  // Allocate block operator
+  // Allocate block operator. Multipliers of integral constraints take one row and column
+  // each, following those of the field variables.
   DeleteHBlocks();
-  _h_blocks.SetSize(_test_var_names.size(), _trial_var_names.size());
+  const int num_blocks = _test_var_names.size() + GetNumScalarBlocks();
+  _h_blocks.SetSize(num_blocks, num_blocks);
   _h_blocks = nullptr;
   // Zero out RHS and sync memory
   trueRHS = 0.0;
@@ -384,6 +435,9 @@ EquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
       _h_blocks(i, j) = aux_a;
     }
   }
+
+  FormIntegralConstraintBlocks(trueX, trueRHS);
+
   // Sync memory
   trueX.SyncFromBlocks();
   trueRHS.SyncFromBlocks();
@@ -393,15 +447,65 @@ EquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
 }
 
 void
+EquationSystem::FormIntegralConstraintBlocks(mfem::BlockVector & trueX, mfem::BlockVector & trueRHS)
+{
+  const int num_fields = _trial_var_names.size();
+  for (const auto k : index_range(_integral_constraints))
+  {
+    auto & constraint = *_integral_constraints.at(k);
+    const auto & trial_var_name = constraint.getTrialVariableName();
+
+    const auto it = std::find(_trial_var_names.begin(), _trial_var_names.end(), trial_var_name);
+    if (it == _trial_var_names.end())
+      mooseError("Integral constraint '",
+                 constraint.name(),
+                 "' acts on variable '",
+                 trial_var_name,
+                 "', which has no equation in this problem. An integral constraint may only "
+                 "constrain a variable that kernels are acting on.");
+    const int j = std::distance(_trial_var_names.begin(), it);
+    const int scalar_block = num_fields + static_cast<int>(k);
+
+    mfem::ParGridFunction & trial_gf = *_var_ess_constraints.at(j);
+    mfem::Vector coupling;
+    mfem::real_t diagonal;
+    constraint.computeConstraintRow(trial_gf, coupling, diagonal);
+
+    // Eliminate the essentially constrained DoFs of the constrained variable, moving their
+    // known contribution to the right hand side. trueX holds those known values, having been
+    // populated by FormLinearSystem above with copy_interior set. Zeroing the coupling vector
+    // removes the eliminated DoFs from the constraint row and from the coupling column at the
+    // same time, since the row is the transpose of the column.
+    mfem::real_t target = constraint.getTarget();
+    for (const auto tdof : _ess_tdof_lists.at(j))
+    {
+      target -= coupling(tdof) * trueX.GetBlock(j)(tdof);
+      coupling(tdof) = 0.0;
+    }
+
+    auto * column = Moose::MFEM::columnMatrix(*trial_gf.ParFESpace(), coupling);
+    _h_blocks(j, scalar_block) = column;
+    _h_blocks(scalar_block, j) = column->Transpose();
+    _h_blocks(scalar_block, scalar_block) =
+        Moose::MFEM::scalarMatrix(trial_gf.ParFESpace()->GetComm(), diagonal);
+
+    // The multiplier's single DoF is owned by rank 0, so its block is empty elsewhere.
+    if (trueRHS.GetBlock(scalar_block).Size())
+      trueRHS.GetBlock(scalar_block)(0) = target;
+  }
+}
+
+void
 EquationSystem::FormSystem(mfem::BlockVector & trueX, mfem::BlockVector & trueRHS)
 {
   BuildEquationSystem();
   height = trueX.Size();
   width = trueRHS.Size();
-  // Store block offsets
+  // Store block offsets. Blocks beyond those of the field variables hold the multipliers of
+  // integral constraints.
   _block_true_offsets.SetSize(trueX.NumBlocks() + 1);
   _block_true_offsets[0] = 0;
-  for (unsigned i = 0; i < _trial_var_names.size(); i++)
+  for (const auto i : make_range(trueX.NumBlocks()))
     _block_true_offsets[i + 1] = trueX.BlockSize(i);
   _block_true_offsets.PartialSum();
   FormLinearSystem(_linear_operator, trueX, trueRHS);
@@ -502,6 +606,25 @@ EquationSystem::SetTrialVariablesFromTrueVectors(const mfem::BlockVector & trueX
     trueX.GetBlock(i).SyncMemory(trueX);
     _gfuncs->Get(trial_var_name)->Distribute(&(trueX.GetBlock(i)));
   }
+
+  // Multipliers of integral constraints follow the field variable blocks. Their single DoF
+  // is owned by rank 0, so it is broadcast to keep every rank's copy of the scalar variable
+  // consistent.
+  const int num_fields = _trial_var_names.size();
+  for (const auto k : index_range(_integral_constraints))
+  {
+    const mfem::Vector & block = trueX.GetBlock(num_fields + static_cast<int>(k));
+    block.SyncMemory(trueX);
+    mfem::real_t value = block.Size() ? block(0) : 0.0;
+    auto & constraint = *_integral_constraints.at(k);
+    MPI_Bcast(&value,
+              1,
+              MFEM_MPI_REAL_T,
+              0,
+              _gfuncs->GetRef(constraint.getTrialVariableName()).ParFESpace()->GetComm());
+    constraint.getScalarVariable().setValue(value);
+  }
+
   // Solution variables changed: stored projections of solution-dependent coefficients are stale.
   if (_coefficient_manager)
     _coefficient_manager->markSolutionChanged();

@@ -42,6 +42,11 @@ public:
   virtual void SetGridFunctions() override;
   virtual void Solve() override;
 
+  virtual std::vector<MFEMScalarVariable *> GetScalarBlockVariables() const override
+  {
+    return GetEquationSystem()->GetScalarBlockVariables();
+  }
+
   [[nodiscard]] virtual EquationSystem * GetEquationSystem() const override
   {
     mooseAssert(_equation_system, "No EquationSystem in EquationSystemProblemOperator.");

@@ -156,6 +156,22 @@ The full closed coil magnetostatic example detailed above can be found below:
 
 ## Global Current Constraints
 
+### Weakly, in the A-V formulation
+
+The third weak equation above is the statement that the net current through the conductor takes a
+prescribed value $I$, tested against the external electric field. It is imposed by an
+[MFEMNetCurrentIntegralConstraint.md], which introduces the loop voltage $\mathcal V$ as the
+multiplier of the constraint, held by an [MFEMScalarVariable.md]. In this current-driven form of
+the problem the loop voltage is solved for rather than prescribed, so no Dirichlet condition is
+placed on the transition potential and the source term coupling it into the equation for $\phi$ is
+supplied by the constraint rather than by an `MFEMMixedGradGradKernel`.
+
+An example file for this approach can be found below:
+
+!listing test/tests/mfem/constraints/closed_coil_net_current.i
+
+### Strongly, in the H-phi formulation
+
 Strongly constraining the total current through the conductor instead of the loop voltage is also
 possible, by defining a cut plane in the domain outside the conductor region using the H-phi
 formulation instead of the A-V formulation detailed above; the details are similar, using a magnetic

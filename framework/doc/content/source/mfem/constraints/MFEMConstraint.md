@@ -24,6 +24,10 @@ This mirrors the way [MFEMEssentialBC.md] and [MFEMComplexEssentialBC.md] both d
 `MFEMBoundaryCondition`. Applying a constraint of the wrong kind to a problem is reported as
 an error when the constraint is added, rather than being silently ignored.
 
+Constraints need not be imposed strongly. [MFEMIntegralConstraint.md] is a third family deriving
+from `MFEMConstraint`, imposing a scalar integral quantity *weakly* through a multiplier held by
+an [MFEMScalarVariable.md], rather than by eliminating degrees of freedom.
+
 !if-end!
 
 !else

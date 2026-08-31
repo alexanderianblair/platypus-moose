@@ -93,4 +93,23 @@
     requirement = 'The system shall report an error if a tree-cotree gauge is applied to an H(curl) variable whose finite element space is of higher than first order, since only the lowest-order edge degrees of freedom are gauged'
     capabilities = 'mfem'
   []
+  [MFEMClosedCoilNetCurrentConstraint]
+    type = CSVDiff
+    input = closed_coil_net_current.i
+    csvdiff = OutputData/ClosedCoilNetCurrent.csv
+    design = 'MFEMNetCurrentIntegralConstraint.md MFEMScalarVariable.md MFEMScalarVariableValue.md'
+    requirement = 'The system shall be able to weakly constrain the net current through an interior cut surface of a closed conductor in an MFEM problem, solving for the loop voltage driving it as the value of a scalar variable, such that the current measured on an independent cross section of the conductor is the one prescribed'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMIntegralConstraintMissingScalarVariable]
+    type = RunException
+    input = closed_coil_net_current.i
+    cli_args = "Constraints/net_current/scalar_variable=coil_cut_function"
+    expect_err = "No MFEMScalarVariable named 'coil_cut_function'"
+    design = 'MFEMIntegralConstraint.md'
+    requirement = 'The system shall report an error if the multiplier of an integral constraint in an MFEM problem names a variable that is not a scalar variable'
+    capabilities = 'mfem'
+  []
 []

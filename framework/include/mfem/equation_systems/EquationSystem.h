@@ -17,6 +17,7 @@
 #include "MFEMIntegratedBC.h"
 #include "MFEMEssentialBC.h"
 #include "MFEMEssentialConstraint.h"
+#include "MFEMIntegralConstraint.h"
 #include "MFEMContainers.h"
 #include "MFEMKernel.h"
 #include "MFEMMixedBilinearFormKernel.h"
@@ -56,6 +57,8 @@ public:
   virtual void AddEssentialBC(std::shared_ptr<MFEMEssentialBC> bc);
   /// Add constraint associated with essentially constrained DoFs on domains.
   virtual void AddEssentialConstraint(std::shared_ptr<MFEMEssentialConstraint> constraint);
+  /// Add constraint weakly imposing a scalar integral quantity through a multiplier.
+  virtual void AddIntegralConstraint(std::shared_ptr<MFEMIntegralConstraint> constraint);
 
   /// Initialise
   virtual void Init(GridFunctions & gridfunctions,
@@ -102,6 +105,16 @@ public:
 
   /// Getter for block true offsets associated with the EquationSystem operator
   const mfem::Array<int> & GetBlockOffsets() const { return _block_true_offsets; }
+
+  /**
+   * Multipliers of integral constraints occupy one single-DoF block each, appended after
+   * the blocks of the field variables.
+   * @returns the number of such trailing scalar blocks.
+   */
+  int GetNumScalarBlocks() const { return _integral_constraints.size(); }
+
+  /// The scalar variables holding the multipliers of the trailing scalar blocks, in block order.
+  std::vector<MFEMScalarVariable *> GetScalarBlockVariables() const;
 
   /**
    * @returns a reference to the MFEM ParBilinearForm corresponding to test_var_name
@@ -223,6 +236,9 @@ protected:
   virtual void FormSystemMatrix(mfem::OperatorHandle & op,
                                 mfem::BlockVector & trueX,
                                 mfem::BlockVector & trueRHS);
+  /// Add the coupling, transposed coupling and diagonal blocks of every integral
+  /// constraint to the block matrix, and their targets to the right hand side.
+  void FormIntegralConstraintBlocks(mfem::BlockVector & trueX, mfem::BlockVector & trueRHS);
   /// Compute Jacobian matrix at the provided vector of true DoFs of trial variables
   void FormJacobianMatrix(const mfem::Vector & u);
 
@@ -333,6 +349,9 @@ protected:
   /// Arrays to store essential domain constraints to act on each component of weak form.
   /// Named according to trial variable.
   NamedFieldsMap<std::vector<std::shared_ptr<MFEMEssentialConstraint>>> _essential_constraint_map;
+  /// Integral constraints, ordered as their multiplier blocks appear in the block system
+  /// following the blocks of the field variables.
+  std::vector<std::shared_ptr<MFEMIntegralConstraint>> _integral_constraints;
 
   // Operator handle for the jacobian
   mutable mfem::OperatorHandle _jacobian;

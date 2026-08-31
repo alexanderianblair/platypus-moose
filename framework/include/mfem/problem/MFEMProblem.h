@@ -357,6 +357,13 @@ public:
   }
 
   /**
+   * @returns a reference to the MFEM scalar variable of the given name, erroring if the
+   * problem has no scalar variable of that name. Named distinctly from
+   * FEProblemBase::getScalarVariable, which returns MOOSE's own scalar variables.
+   */
+  MFEMScalarVariable & getMFEMScalarVariable(const std::string & name);
+
+  /**
    * Enumerates the supported numeric representations for MFEM variables and operators.
    */
   enum class NumericType

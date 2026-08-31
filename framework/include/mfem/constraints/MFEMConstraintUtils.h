@@ -50,6 +50,21 @@ void projectCoefficientOnSubdomains(mfem::ParGridFunction & gf,
  * leaving its local vector consistent with the true vector.
  */
 void zeroTrueDofs(mfem::ParGridFunction & gf, const mfem::Array<int> & tdofs);
+
+/**
+ * Build the (N x 1) parallel matrix whose single global column holds @p column, itself
+ * distributed over the N true dofs of @p pfes. The single column is owned by rank 0, so
+ * the matrix couples a global scalar unknown into the block of a field variable. Its
+ * transpose is the corresponding constraint row. The caller takes ownership.
+ */
+mfem::HypreParMatrix * columnMatrix(mfem::ParFiniteElementSpace & pfes,
+                                    const mfem::Vector & column);
+
+/**
+ * Build the (1 x 1) parallel matrix holding @p value on communicator @p comm, with its
+ * single row and column owned by rank 0. The caller takes ownership.
+ */
+mfem::HypreParMatrix * scalarMatrix(MPI_Comm comm, mfem::real_t value);
 }
 
 #endif
