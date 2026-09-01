@@ -43,13 +43,16 @@ Gmsh names each resulting group after the space and the domain it was computed o
 basis cochain of $H^1$ of the domain of physical group 1 is named `H^1{1}1`. That name is what
 should be given to the `cut_name` parameter.
 
-The cochain is read from the mesh file directly, since MFEM's Gmsh reader keeps only elements of the
-mesh dimension and of one dimension below it, and so discards the line elements holding the cochain.
+A group of line elements lies two dimensions below a three dimensional mesh, so it takes no part in
+the mesh topology and has no place in the element or boundary arrays. MFEM's Gmsh reader keeps such
+groups in `mfem::Mesh::subdim_entities`, and [MFEMMesh.md] takes them from the serial mesh as it is
+read, before it is partitioned. The cochain therefore always comes from the file the mesh itself was
+built from.
 
 ## Limitations
 
-- The mesh must be a Gmsh mesh in the ASCII 2.2 or 4.1 format, and the same file the mesh was built
-  from.
+- The mesh format must be one whose reader keeps groups lying below the mesh boundary, which at
+  present means a Gmsh mesh. Both the 2.2 and 4.1 formats work, in ASCII or binary.
 - The variable must be defined on a `FIRST` order `ND` finite element space, since the cochain
   supplies a single value per mesh edge.
 - The mesh must not be refined after being read, as refinement replaces the edges the cochain is

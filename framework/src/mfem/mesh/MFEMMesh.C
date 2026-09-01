@@ -13,6 +13,7 @@
 #include "MooseApp.h"
 #include "libmesh/mesh_generation.h"
 
+#include <algorithm>
 #include <fstream>
 
 registerMooseObject("MooseApp", MFEMMesh);
@@ -77,12 +78,55 @@ MFEMMesh::init()
 }
 
 void
+MFEMMesh::captureFileEdgeGroups(const mfem::Mesh & mesh)
+{
+  for (const auto & entity : mesh.subdim_entities)
+  {
+    if (entity.dim != 1)
+      continue;
+
+    FileEdge edge{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+    for (const auto d : make_range(mesh.SpaceDimension()))
+    {
+      edge.p0[d] = mesh.GetVertex(entity.vertices[0])[d];
+      edge.p1[d] = mesh.GetVertex(entity.vertices[1])[d];
+    }
+
+    for (const auto & [name, attributes] : mesh.subdim_attribute_sets)
+      if (std::find(attributes.begin(), attributes.end(), entity.attribute) != attributes.end())
+        _file_edge_groups[name].push_back(edge);
+  }
+}
+
+const std::vector<MFEMMesh::FileEdge> &
+MFEMMesh::getFileEdgeGroup(const std::string & name) const
+{
+  static const std::vector<FileEdge> none;
+  const auto it = _file_edge_groups.find(name);
+  return (it == _file_edge_groups.end()) ? none : it->second;
+}
+
+std::vector<std::string>
+MFEMMesh::getFileEdgeGroupNames() const
+{
+  std::vector<std::string> names;
+  for (const auto & [name, _] : _file_edge_groups)
+    names.push_back(name);
+  return names;
+}
+
+void
 MFEMMesh::buildMesh()
 {
   TIME_SECTION("buildMesh", 2, "Reading Mesh");
 
   // Build the MFEM ParMesh from a serial MFEM mesh
   mfem::Mesh mfem_ser_mesh(getFileName());
+
+  // Groups the file defined below the mesh boundary take no part in the topology and
+  // are not carried into the ParMesh built below, so they are taken while the serial
+  // mesh still holds them, and before any refinement replaces the edges they name.
+  captureFileEdgeGroups(mfem_ser_mesh);
 
   if (isParamSetByUser("serial_refine") && isParamSetByUser("uniform_refine"))
     paramError(

@@ -32,7 +32,7 @@
     type = RunException
     input = cohomology_cut_source.i
     cli_args = "ICs/cut/cut_name='H^1{9}9'"
-    expect_err = 'No physical group named .* was found in Gmsh mesh file'
+    expect_err = 'holds no group of edges named'
     requirement = 'MOOSE shall report an error if the physical group naming a cohomology basis '
                   'cochain is not present in the Gmsh mesh file.'
     capabilities = 'mfem'

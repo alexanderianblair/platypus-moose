@@ -10,7 +10,7 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "MFEMCohomologyCutIC.h"
-#include "MFEMGmshCochain.h"
+#include "MFEMCochain.h"
 #include "MFEMMesh.h"
 #include "MFEMProblem.h"
 
@@ -58,11 +58,7 @@ MFEMCohomologyCutIC::execute()
                "geometry in Gmsh, and recompute the cohomology on the refined mesh, instead of "
                "setting serial_refine, uniform_refine or parallel_refine on the [Mesh] block.");
 
-  // Every rank builds the whole serial mesh from this file before it is partitioned, so
-  // reading the cochain from it on every rank costs no more than the mesh already does
-  // and saves communicating it.
-  const auto cochain =
-      Moose::MFEM::readGmshCochain(mesh.getFileName(), getParam<std::string>("cut_name"), *this);
+  const auto cochain = Moose::MFEM::readCochain(mesh, getParam<std::string>("cut_name"), *this);
 
   auto grid_function = getMFEMProblem().getGridFunction(getParam<VariableName>("variable"));
   Moose::MFEM::applyCochain(*grid_function, cochain, getParam<Real>("amplitude"), *this);

@@ -13,6 +13,9 @@
 
 #include "FileMesh.h"
 
+#include <array>
+#include <map>
+
 /**
  * MFEMMesh inherits a MOOSE mesh class which allows us to work with
  * other MOOSE objects. It contains a pointer to the parallel MFEM mesh.
@@ -57,6 +60,28 @@ public:
    */
   bool shouldDisplace() const { return _mesh_displacement_variable.has_value(); }
 
+  /// An edge of a named group of edges read from the mesh file, held as the
+  /// coordinates of its two endpoints in the order the file gave them.
+  struct FileEdge
+  {
+    std::array<mfem::real_t, 3> p0, p1;
+  };
+
+  /**
+   * Edges of the named group @p name that the mesh file defined below its boundary,
+   * such as the physical group of line elements Gmsh's Cohomology command writes, or
+   * an empty vector if the file named no such group.
+   *
+   * Held as coordinates rather than vertex indices because neither the partitioning
+   * of the serial mesh into an mfem::ParMesh nor any later renumbering preserves the
+   * serial vertex numbering, while the coordinates are copied verbatim and so stay
+   * bit-identical on every rank.
+   */
+  const std::vector<FileEdge> & getFileEdgeGroup(const std::string & name) const;
+
+  /// Names of every group of edges read from the mesh file, for error reporting.
+  std::vector<std::string> getFileEdgeGroupNames() const;
+
   /**
    * Returns an optional reference to displacement variable name.
    */
@@ -90,6 +115,12 @@ private:
   void uniformRefinement(mfem::Mesh & mesh, const unsigned int nref) const;
 
   /**
+   * Take the named groups of edges that the file defined below the boundary of
+   * @p mesh, before the mesh is partitioned and they are lost.
+   */
+  void captureFileEdgeGroups(const mfem::Mesh & mesh);
+
+  /**
    * Holds name of variable used for mesh displacement, if set.
    */
   std::optional<std::string> _mesh_displacement_variable;
@@ -99,6 +130,13 @@ private:
    * Use the accessors instead.
    */
   std::shared_ptr<mfem::ParMesh> _mfem_par_mesh{nullptr};
+
+  /**
+   * Edges of each named group the mesh file defined below its boundary, keyed on the
+   * group name. Taken from the serial mesh as it is read, which is the only point at
+   * which they exist; empty for a file format that stores no such groups.
+   */
+  std::map<std::string, std::vector<FileEdge>> _file_edge_groups;
 };
 
 inline const mfem::ParMesh &
