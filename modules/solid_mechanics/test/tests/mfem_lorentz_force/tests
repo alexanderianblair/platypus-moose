@@ -1,0 +1,29 @@
+[Tests]
+  design = 'syntax/MFEM/LorentzForceCoil.md'
+  issues = '#31982'
+  [LorentzForceCoil]
+    requirement = 'The system shall be able to deform a coil in a transient libMesh mechanics '
+                  'application using the time dependent Lorentz force density computed by an MFEM '
+                  'sub-application, reproducing'
+    [uniaxial_strain]
+      type = CSVDiff
+      input = uniaxial_strain.i
+      csvdiff = 'uniaxial_strain_out.csv'
+      detail = 'the exact linear elasticity solution for a coil bar held in uniaxial strain, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      restep = false
+    []
+    [cantilever]
+      type = CSVDiff
+      input = cantilever.i
+      csvdiff = 'cantilever_out.csv'
+      detail = 'the Euler-Bernoulli deflection of a cantilevered coil bar.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      restep = false
+    []
+  []
+[]

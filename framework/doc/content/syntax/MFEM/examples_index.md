@@ -40,6 +40,13 @@ that may serve as a useful starting point for users to adapt.
   field around a topologically closed toroidal conductor carrying a net current, using a magnetic
   vector potential discretized using $H(\mathrm{curl})$ conforming Nédélec elements.
 
+## Coupled Problems
+
+- [Lorentz Force Driven Coil Deformation](syntax/MFEM/LorentzForceCoil.md): Solves a transient
+  multiapp problem in which MFEM computes the Lorentz force density on a current carrying coil
+  and a libMesh solid mechanics parent application uses that force at every timestep to deform
+  the coil. Both halves of the coupling are verified against analytic solutions.
+
 ## Fluid Problems
 
 - [Darcy](syntax/MFEM/Darcy.md): Solves a 2D mixed Darcy problem. This is a saddle point
