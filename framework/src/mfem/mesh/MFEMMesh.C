@@ -32,6 +32,13 @@ MFEMMesh::validParams()
   params.addParam<unsigned int>(
       "parallel_refine", 0, "Number of parallel refinements to perform on the mesh.");
   params.addParam<std::string>("displacement", "Optional variable to use for mesh displacement.");
+  params.addParam<bool>(
+      "displacement_is_total",
+      false,
+      "Whether the displacement variable holds the total displacement measured from the "
+      "undeformed mesh, in which case the mesh is repositioned relative to a stored copy of the "
+      "undeformed node positions every time it is displaced. By default the displacement is "
+      "treated as an increment and is accumulated onto the current node positions.");
   params.addParam<bool>("nonconforming",
                         false,
                         "Ensures the mesh is non-conforming: necessary for refining quad/hex "
@@ -46,7 +53,10 @@ MFEMMesh::validParams()
   return params;
 }
 
-MFEMMesh::MFEMMesh(const InputParameters & parameters) : FileMesh(parameters) {}
+MFEMMesh::MFEMMesh(const InputParameters & parameters)
+  : FileMesh(parameters), _displacement_is_total(getParam<bool>("displacement_is_total"))
+{
+}
 
 MFEMMesh::~MFEMMesh() {}
 
@@ -146,6 +156,16 @@ MFEMMesh::displace(mfem::GridFunction const & displacement)
 {
   _mfem_par_mesh->EnsureNodes();
   mfem::GridFunction * nodes = _mfem_par_mesh->GetNodes();
+
+  if (_displacement_is_total)
+  {
+    // Reposition relative to the undeformed mesh rather than accumulating. This makes repeated
+    // displacements idempotent, which a transient solve driven by a total displacement field needs
+    // (it is displaced once per solve, and once per fixed point iteration within a solve).
+    if (!_undisplaced_nodes)
+      _undisplaced_nodes.emplace(*nodes);
+    *nodes = *_undisplaced_nodes;
+  }
 
   *nodes += displacement;
 }

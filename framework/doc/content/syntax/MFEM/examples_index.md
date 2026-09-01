@@ -45,7 +45,9 @@ that may serve as a useful starting point for users to adapt.
 - [Lorentz Force Driven Coil Deformation](syntax/MFEM/LorentzForceCoil.md): Solves a transient
   multiapp problem in which MFEM computes the Lorentz force density on a current carrying coil
   and a libMesh solid mechanics parent application uses that force at every timestep to deform
-  the coil. Both halves of the coupling are verified against analytic solutions.
+  the coil. Both halves of the coupling are verified against analytic solutions, and a two-way
+  coupled variant displaces the MFEM conductor mesh with the computed deformation and recomputes
+  the force on the moved conductor.
 
 ## Fluid Problems
 

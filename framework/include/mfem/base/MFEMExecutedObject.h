@@ -100,12 +100,31 @@ protected:
    */
   static void appendDependencyParam(InputParameters & params, const std::string & param_name);
 
+  /**
+   * Add a requested variable dependency for the named parameter if it holds coefficient names of
+   * type T. Coefficient names that do not name a variable are still recorded, but nothing supplies
+   * them so the dependency resolver ignores them.
+   */
+  template <typename T>
+  void addCoefficientDependency(const std::string & param_name);
+
 private:
   /// Lazily constructed requested dependency keys for this object's registered dependencies.
   std::optional<std::set<std::string>> _requested_items;
   /// Lazily constructed supplied dependency keys for this object's supplied resources.
   std::optional<std::set<std::string>> _supplied_items;
 };
+
+template <typename T>
+void
+MFEMExecutedObject::addCoefficientDependency(const std::string & param_name)
+{
+  if (const auto * const name = queryParam<T>(param_name))
+    _requested_items->insert(variableDependencyKey(*name));
+  if (const auto * const names = queryParam<std::vector<T>>(param_name))
+    for (const auto & name : *names)
+      _requested_items->insert(variableDependencyKey(name));
+}
 
 template <typename T>
 void

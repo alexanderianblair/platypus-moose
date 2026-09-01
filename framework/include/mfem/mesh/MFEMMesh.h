@@ -95,6 +95,18 @@ private:
   std::optional<std::string> _mesh_displacement_variable;
 
   /**
+   * Whether the displacement variable holds the total displacement from the undeformed mesh
+   * rather than the increment to apply at this solve.
+   */
+  bool _displacement_is_total{false};
+
+  /**
+   * Undeformed node positions, captured the first time a total displacement is applied so that
+   * later displacements are measured from them instead of accumulating.
+   */
+  std::optional<mfem::Vector> _undisplaced_nodes;
+
+  /**
    * Smart pointers to mfem::ParMesh object. Do not access directly.
    * Use the accessors instead.
    */

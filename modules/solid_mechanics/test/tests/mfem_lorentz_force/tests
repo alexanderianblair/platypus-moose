@@ -26,4 +26,17 @@
       restep = false
     []
   []
+  [LorentzForceCoilDisplaced]
+    type = CSVDiff
+    input = displaced_uniaxial_strain.i
+    csvdiff = 'displaced_uniaxial_strain_out.csv'
+    requirement = 'The system shall be able to displace an MFEM mesh by the deformation computed '
+                  'in a libMesh mechanics parent application and recompute the Lorentz force on '
+                  'the deformed conductor, reproducing the closed form solution of the resulting '
+                  'coupled problem.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+    restep = false
+  []
 []

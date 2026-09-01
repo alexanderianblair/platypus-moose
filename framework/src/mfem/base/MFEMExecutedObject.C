@@ -73,6 +73,20 @@ MFEMExecutedObject::getRequestedItems()
         _requested_items->insert(vectorPostprocessorDependencyKey(name));
   }
 
+  // Coefficient-valued parameters couple this object to whatever supplies the coefficient. A
+  // coefficient name that matches a variable name resolves to that variable, so the variable must
+  // be up to date before this object executes. Without this, chains of objects that consume each
+  // other only through coefficients (a cross product of two projected fields, say) are ordered
+  // arbitrarily and silently evaluate stale data. Names that are numeric literals, functions or
+  // material properties are recorded too, but nothing supplies them so the resolver ignores them.
+  for (const auto & [param_name, param_value] : _pars)
+  {
+    libmesh_ignore(param_value);
+    addCoefficientDependency<MFEMScalarCoefficientName>(param_name);
+    addCoefficientDependency<MFEMVectorCoefficientName>(param_name);
+    addCoefficientDependency<MFEMMatrixCoefficientName>(param_name);
+  }
+
   return *_requested_items;
 }
 

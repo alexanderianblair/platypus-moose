@@ -123,6 +123,79 @@ finite thickness correction to slender beam theory. Note that the anticlastic
 restraint of the fully clamped end stiffens the bar, which outweighs the
 softening due to shear deformation at this aspect ratio.
 
+## Deforming the Conductor
+
+The two cases above are one-way coupled: the MFEM conductor is solved on its
+undeformed geometry and never learns that the coil has moved. That is exact for
+the uniaxial strain case and a good approximation for the cantilever, for a
+reason worth stating explicitly. The Lorentz force is perpendicular to the
+current, so it never stretches the conductor along the direction the current
+flows in. Under the roller conditions of the uniaxial strain case the transverse
+strains vanish identically, the length of the current path is untouched, and the
+current density is therefore completely unchanged by the deformation.
+
+`displaced_uniaxial_strain.i` closes the loop anyway. The parent sends its
+displacement to the sub-application, which moves its mesh with it and re-solves
+the conduction problem on the deformed conductor, and the applied field is made
+to vary through the thickness,
+
+\begin{equation}
+\vec B = B_0 \left(1 + \frac{z}{z_0}\right) \hat e_y
+\end{equation}
+
+so that a conductor which moves in $z$ samples a different field and feels a
+different force. Because transfers of MFEM vector variables are not supported,
+the displacement crosses as three scalars and is reassembled into the vector
+[MFEMMesh.md] consumes with an [MFEMVectorFromScalarsAux.md]. The displacement is
+a total displacement, so `Mesh/displacement_is_total` is set; that keeps
+displacing the mesh idempotent across the fixed point iterations the coupling
+needs.
+
+Writing $f_0(t)$ for the force density the undeformed bar feels at $z = 0$, the
+coupled problem is
+
+\begin{equation}
+M \frac{d^2 u_z}{dz^2} + f_0(t)\left(1 + \frac{z + u_z}{z_0}\right) = 0,
+\qquad u_z(0) = 0, \qquad u_z'(w) = 0
+\end{equation}
+
+with $M = \lambda + 2\mu$. This is still linear in $u_z$, so it has the closed
+form
+
+\begin{equation}
+u_z(z,t) = z_0 \cos(k z) + B \sin(k z) - (z_0 + z), \qquad
+k = \sqrt{\frac{f_0(t)}{M z_0}}, \qquad
+B = \frac{1 + z_0 k \sin(k w)}{k \cos(k w)}
+\end{equation}
+
+At the end of the ramp the moving conductor raises the surface displacement by
+5.4% over the value obtained if the field were sampled at the undeformed
+position, and the computed result matches the closed form above to 0.44%. Both
+numbers are reported in the CSV, so the test distinguishes the coupled answer
+from the uncoupled one by more than an order of magnitude. The current density is
+also transferred back and checked: its error against $\sigma V_0 t / L$ stays at
+the level of $10^{-14}$, confirming the point made above that deforming this
+conductor leaves the current untouched.
+
+### Caveats
+
+Two limitations are worth knowing before reusing this pattern.
+
+The force is transferred on the undeformed configuration. Sampling the displaced
+positions instead, with `displaced_target_mesh = true`, is the more obviously
+correct Lagrangian correspondence, but it changes the answer by around a percent
+here, which is a noticeable fraction of the 5.4% effect being measured; the
+transfer's treatment of the deformed frame is not accurate enough for the
+difference between the two conventions to be neglected. It also fails outright
+once the surface displacement grows beyond the sampling margin, because points
+that have moved past the deformed MFEM mesh fall outside it and the transfer
+returns its out-of-mesh value of infinity.
+
+The strain reached here is around 10%, which is large for the small strain
+elasticity used. The comparison remains a valid verification, since the closed
+form above is the exact solution of the same linear model, but the problem should
+be read as a numerical exercise rather than a physically calibrated one.
+
 ## Example Files
 
 The MFEM sub-application solving for the current density and Lorentz force:
@@ -136,3 +209,9 @@ The mechanics parent application used for the uniaxial strain verification:
 The mechanics parent application used for the cantilever verification:
 
 !listing modules/solid_mechanics/test/tests/mfem_lorentz_force/cantilever.i
+
+The two-way coupled pair, in which the conductor mesh follows the deformation:
+
+!listing modules/solid_mechanics/test/tests/mfem_lorentz_force/lorentz_force_coil_displaced.i
+
+!listing modules/solid_mechanics/test/tests/mfem_lorentz_force/displaced_uniaxial_strain.i
