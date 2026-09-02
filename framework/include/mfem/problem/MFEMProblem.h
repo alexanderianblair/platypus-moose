@@ -23,6 +23,7 @@
 namespace Moose::MFEM
 {
 struct SolutionState;
+class TimeIntegratorBase;
 }
 
 class MFEMProblem : public ExternalProblem
@@ -246,6 +247,23 @@ public:
   virtual void resolveMFEMSolvers();
 
   /**
+   * Method called in AddMFEMTimeIntegratorAction which constructs the object selecting the time
+   * integration scheme used to advance this problem.
+   */
+  virtual void addMFEMTimeIntegrator(const std::string & user_object_name,
+                                     const std::string & name,
+                                     InputParameters & parameters);
+
+  /**
+   * @returns the time integrator selecting the time integration scheme used to advance this
+   * problem, or nullptr if no [TimeIntegrators] block was provided.
+   */
+  const Moose::MFEM::TimeIntegratorBase * getMFEMTimeIntegrator() const
+  {
+    return _mfem_time_integrator.get();
+  }
+
+  /**
    * Execute MFEM executed objects scheduled on the supplied execute flag.
    */
   void executeMFEMObjects(const ExecFlagType & exec_type);
@@ -408,6 +426,13 @@ protected:
    * declaring dependencies between solver objects.
    */
   std::map<std::string, MFEMSolverDefinition> _mfem_solver_definitions;
+
+  /**
+   * Time integrator selecting the scheme used to advance this problem, constructed from the
+   * [TimeIntegrators] block. Null if no such block was provided, in which case a transient
+   * executioner falls back on its default scheme.
+   */
+  std::shared_ptr<Moose::MFEM::TimeIntegratorBase> _mfem_time_integrator;
 
   /// Restartable MFEM solution state associated with this problem.
   Moose::MFEM::SolutionState & _solution_state_data;

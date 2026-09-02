@@ -557,6 +557,11 @@ addActionTypes(Syntax & syntax)
   addTaskDependency("resolve_mfem_solvers", "add_mfem_solver");
   addTaskDependency("init_problem", "resolve_mfem_solvers");
 
+  // add time integrator object selecting the transient time integration scheme.
+  registerMooseObjectTask("add_mfem_time_integrator", Moose::MFEM::TimeIntegratorBase, false);
+  addTaskDependency("add_mfem_time_integrator", "create_problem_complete");
+  addTaskDependency("init_problem", "add_mfem_time_integrator");
+
   // indicators/estimators before markers
   addTaskDependency("add_marker", "add_indicator");
 #endif
@@ -852,6 +857,8 @@ associateSyntaxInner(Syntax & syntax, ActionFactory & /*action_factory*/)
       "AddMFEMComplexBCComponentAction", "BCs/*/*", "add_mfem_complex_bc_components");
   registerSyntaxTask("AddMFEMSolverAction", "Solvers/*", "add_mfem_solver");
   syntax.registerSyntaxType("Solvers/*", "MFEMSolverName");
+  registerSyntaxTask(
+      "AddMFEMTimeIntegratorAction", "TimeIntegrators/*", "add_mfem_time_integrator");
 #endif
 
   registerSyntax("NEML2ActionCommon", "NEML2");

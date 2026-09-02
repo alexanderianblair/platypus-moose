@@ -13,6 +13,7 @@
 #include "MFEMProblem.h"
 #include "TimeDependentEquationSystemProblemOperator.h"
 #include "TimeStepper.h"
+#include "MFEMTimeIntegratorBase.h"
 
 registerMooseObject("MooseApp", MFEMTransient);
 
@@ -47,11 +48,22 @@ MFEMTransient::init()
 {
   TransientBase::init();
 
+  if (const auto * const time_integrator = _mfem_problem.getMFEMTimeIntegrator())
+  {
+    // The scheme is selected either in the executioner or by a time integrator object, but not
+    // both, mirroring the check TransientBase makes for its own time integrators.
+    if (_pars.isParamSetByUser("scheme"))
+      paramError("scheme",
+                 "The time integration scheme cannot be set in the executioner at the same time "
+                 "as a time integrator is added in the [TimeIntegrators] block.");
+    _mfem_problem_data.ode_solver = time_integrator->createODESolver();
+  }
   // verify that the requested time integration scheme is actually supported by MFEM transient
-  if (getTimeScheme() != Moose::TimeIntegratorType::TI_IMPLICIT_EULER)
+  else if (getTimeScheme() != Moose::TimeIntegratorType::TI_IMPLICIT_EULER)
     paramError("scheme",
                "Time Integration scheme \"" + stringify(getTimeScheme()) +
-                   "\" is not supported by MFEMTransient Executioner.");
+                   "\" is not supported by MFEMTransient Executioner. Other schemes may be "
+                   "selected by adding a time integrator in the [TimeIntegrators] block.");
 
   if (_mfem_problem_data.nonlinear_solver)
     _mfem_problem_data.eqn_system->SetGradientRequired(

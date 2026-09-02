@@ -1,0 +1,210 @@
+[Tests]
+  design = 'MFEMRungeKuttaTimeIntegrator.md MFEMButcherTableauTimeIntegrator.md '
+           'TimeDependentEquationSystem.md'
+  issues = '#00000'
+  [mms]
+    requirement = 'The system shall integrate a transient MFEM problem with time dependent '
+                  'essential boundary conditions to the design order of accuracy of the '
+                  'Runge-Kutta scheme selected by the user, when the scheme is'
+    [implicit_euler]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=implicit_euler Outputs/out/file_base=mms_implicit_euler'
+      csvdiff = 'mms_implicit_euler.csv'
+      detail = 'first order backwards Euler,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [implicit_midpoint]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=implicit_midpoint '
+                 'Outputs/out/file_base=mms_implicit_midpoint'
+      csvdiff = 'mms_implicit_midpoint.csv'
+      detail = 'the second order implicit midpoint rule, which is not stiffly accurate,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [sdirk22]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=sdirk22 Outputs/out/file_base=mms_sdirk22'
+      csvdiff = 'mms_sdirk22.csv'
+      detail = 'a two stage second order singly diagonally implicit scheme,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [sdirk33]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=sdirk33 Outputs/out/file_base=mms_sdirk33'
+      csvdiff = 'mms_sdirk33.csv'
+      detail = 'a three stage third order singly diagonally implicit scheme,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [crank_nicolson]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=crank_nicolson '
+                 'Outputs/out/file_base=mms_crank_nicolson'
+      csvdiff = 'mms_crank_nicolson.csv'
+      detail = 'the Crank-Nicolson rule, whose first stage is explicit,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [esdirk32]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=esdirk32 Outputs/out/file_base=mms_esdirk32'
+      csvdiff = 'mms_esdirk32.csv'
+      detail = 'a three stage second order diagonally implicit scheme with an explicit first '
+               'stage,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [explicit_euler]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=explicit_euler Mesh/gen/nx=2 Executioner/dt=0.005 '
+                 'Outputs/out/file_base=mms_explicit_euler'
+      csvdiff = 'mms_explicit_euler.csv'
+      detail = 'the fully explicit first order scheme, whose timestep is restricted by the '
+               'stability limit of the discretisation, or'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+    [rk4]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=rk4 Mesh/gen/nx=2 Executioner/dt=0.04 '
+                 'Outputs/out/file_base=mms_rk4'
+      csvdiff = 'mms_rk4.csv'
+      # The fourth order error of this scheme is smaller than the residual tolerance of the
+      # linear solves that produce it, so the comparison is loosened accordingly.
+      abs_zero = 1e-14
+      rel_err = 1e-4
+      detail = 'the fully explicit classical fourth order scheme.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+    []
+  []
+  [butcher_tableau]
+    type = CSVDiff
+    input = mms.i
+    cli_args = 'TimeIntegrators/ti/type=MFEMButcherTableauTimeIntegrator '
+               'TimeIntegrators/ti/a="0.29289321881345248 0.0 '
+               '0.70710678118654752 0.29289321881345248" '
+               'TimeIntegrators/ti/b="0.70710678118654752 0.29289321881345248" '
+               'Outputs/out/file_base=mms_butcher_tableau'
+    csvdiff = 'mms_butcher_tableau.csv'
+    requirement = 'The system shall integrate a transient MFEM problem with a Runge-Kutta scheme '
+                  'supplied by the user as a Butcher tableau, taking the stage times to be the '
+                  'row sums of the Runge-Kutta matrix when they are not given.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [nonlinear]
+    requirement = 'The system shall integrate a transient MFEM problem whose equation system '
+                  'contains nonlinear forms to the design order of accuracy of the Runge-Kutta '
+                  'scheme selected by the user, solving'
+    [implicit_stages]
+      type = CSVDiff
+      input = nonlinear.i
+      cli_args = 'TimeIntegrators/ti/scheme=sdirk22 Outputs/out/file_base=nonlinear_sdirk22'
+      csvdiff = 'nonlinear_sdirk22.csv'
+      detail = 'each implicit stage as a nonlinear system in its own right, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      restep = false
+    []
+    [explicit_stage]
+      type = CSVDiff
+      input = nonlinear.i
+      cli_args = 'TimeIntegrators/ti/scheme=crank_nicolson '
+                 'Outputs/out/file_base=nonlinear_crank_nicolson'
+      csvdiff = 'nonlinear_crank_nicolson.csv'
+      detail = 'each explicit stage as a linear mass system whose right hand side carries the '
+               'nonlinear residual evaluated at the stage base state.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      recover = false
+      restep = false
+    []
+  []
+  [errors]
+    requirement = 'The system shall report an error when the Runge-Kutta scheme advancing a '
+                  'transient MFEM problem is specified with'
+    [non_square_matrix]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/type=MFEMButcherTableauTimeIntegrator '
+                 'TimeIntegrators/ti/a="1 0 0" TimeIntegrators/ti/b="1 0"'
+      expect_err = 'requires 4 row-major entries in the Runge-Kutta matrix a, but 3 were given'
+      detail = 'a Runge-Kutta matrix whose size does not match the number of stages,'
+      capabilities = 'mfem'
+    []
+    [fully_implicit_tableau]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/type=MFEMButcherTableauTimeIntegrator '
+                 'TimeIntegrators/ti/a="0.25 0.25 0.5 0.25" TimeIntegrators/ti/b="0.5 0.5"'
+      expect_err = 'Only explicit and diagonally implicit Runge-Kutta schemes are supported'
+      detail = 'a fully implicit Butcher tableau,'
+      capabilities = 'mfem'
+    []
+    [inconsistent_weights]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/type=MFEMButcherTableauTimeIntegrator '
+                 'TimeIntegrators/ti/a="1" TimeIntegrators/ti/b="2"'
+      expect_err = 'the quadrature weights b sum to 2 rather than one'
+      detail = 'quadrature weights that do not sum to one,'
+      capabilities = 'mfem'
+    []
+    [inconsistent_stage_times]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/type=MFEMButcherTableauTimeIntegrator '
+                 'TimeIntegrators/ti/a="1" TimeIntegrators/ti/b="1" TimeIntegrators/ti/c="0.5"'
+      expect_err = 'does not match the sum of row 1 of the Runge-Kutta matrix'
+      detail = 'stage times that do not match the row sums of the Runge-Kutta matrix,'
+      capabilities = 'mfem'
+    []
+    [scheme_and_time_integrator]
+      type = RunException
+      input = mms.i
+      cli_args = 'Executioner/scheme=implicit-euler'
+      expect_err = 'cannot be set in the executioner at the same time as a time integrator is '
+                   'added in the \[TimeIntegrators\] block'
+      detail = 'both in the executioner and in a time integrator object,'
+      capabilities = 'mfem'
+    []
+    [multiple_time_integrators]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/other/type=MFEMRungeKuttaTimeIntegrator'
+      expect_err = 'a transient MFEM problem is advanced by a single time integrator'
+      detail = 'by more than one time integrator object, or'
+      capabilities = 'mfem'
+    []
+    [explicit_stage_without_mass]
+      type = RunException
+      input = mms.i
+      cli_args = 'TimeIntegrators/ti/scheme=crank_nicolson Kernels/active="diff source"'
+      expect_err = 'has no time derivative kernel, so its mass operator is singular'
+      detail = 'with an explicit stage when an equation of the system has no time derivative.'
+      capabilities = 'mfem'
+    []
+  []
+[]

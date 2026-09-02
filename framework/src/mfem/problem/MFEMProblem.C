@@ -10,6 +10,7 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "MFEMProblem.h"
+#include "MFEMTimeIntegratorBase.h"
 #include "MFEMVariable.h"
 #include "MFEMIndicator.h"
 #include "MFEMSubMesh.h"
@@ -144,6 +145,22 @@ MFEMProblem::addMFEMSolver(const std::string & solver_type,
 {
   mooseAssert(!_mfem_solver_definitions.count(name), "Multiple MFEM solvers named '" + name + "'.");
   _mfem_solver_definitions.emplace(name, MFEMSolverDefinition{solver_type, &parameters});
+}
+
+void
+MFEMProblem::addMFEMTimeIntegrator(const std::string & time_integrator_type,
+                                   const std::string & name,
+                                   InputParameters & parameters)
+{
+  if (_mfem_time_integrator)
+    mooseError("Multiple MFEM time integrators were provided in the [TimeIntegrators] block, '",
+               _mfem_time_integrator->name(),
+               "' and '",
+               name,
+               "', but a transient MFEM problem is advanced by a single time integrator.");
+
+  _mfem_time_integrator =
+      addObject<Moose::MFEM::TimeIntegratorBase>(time_integrator_type, name, parameters).front();
 }
 
 void
