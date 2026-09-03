@@ -43,6 +43,15 @@ method as shown below
 
 where $\mathbf{J}$ is the Jacobian, and $\delta \vec{u}$ is the incremental solution.
 
+With `legacy` assembly, $\mathbf{J}$ is assembled into a single
+[`mfem::HypreParMatrix`](https://docs.mfem.org/html/classmfem_1_1HypreParMatrix.html). At every
+other assembly level the Jacobian is applied matrix-free instead, as the sum of the partially
+assembled linear part of the system operator and the gradient of the non-linear forms evaluated at
+$\vec{u}_n$, so that no monolithic matrix is built for a non-linear solve. Such a Jacobian may only
+be passed to solvers and preconditioners that require no more than its action and its diagonal, for
+instance [MFEMGMRESSolver.md] or [MFEMCGSolver.md] preconditioned by
+[MFEMOperatorJacobiSmoother.md] or [MFEMOperatorChebyshevSmoother.md].
+
 !if-end!
 
 !else

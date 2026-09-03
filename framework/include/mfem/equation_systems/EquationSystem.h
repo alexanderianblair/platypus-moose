@@ -27,6 +27,34 @@ namespace Moose::MFEM
 class CoefficientManager;
 
 /**
+ * Matrix-free Jacobian of a nonlinear EquationSystem.
+ *
+ * Applies the sum of the (possibly unassembled) linear part of the system operator and the
+ * gradient of the system's nonlinear forms evaluated at the current nonlinear iterate. Neither
+ * operand is owned, and neither is combined into a monolithic matrix, so the linear part is free
+ * to remain in whatever partially assembled form the requested assembly level produced.
+ */
+class JacobianOperator : public mfem::SumOperator
+{
+public:
+  JacobianOperator(const mfem::Operator & linear_operator,
+                   const mfem::Operator & nonlinear_gradient);
+
+  /**
+   * mfem::SumOperator provides no diagonal, but both of our operands do. Supplying the summed
+   * diagonal lets diagonal-based smoothers (Jacobi, Chebyshev) precondition the Jacobian without
+   * it ever being assembled.
+   */
+  void AssembleDiagonal(mfem::Vector & diag) const override;
+
+private:
+  const mfem::Operator & _linear_operator;
+  const mfem::Operator & _nonlinear_gradient;
+  /// Work vector holding the nonlinear gradient's contribution to the diagonal.
+  mutable mfem::Vector _nonlinear_diag;
+};
+
+/**
  * Owns the weak-form mathematics of a MOOSE MFEM problem.
  *
  * An EquationSystem stores weak-form components (bilinear, linear, mixed-bilinear,
@@ -78,6 +106,8 @@ public:
   mfem::Operator & GetGradient(const mfem::Vector & u) const override;
   /// Get operator handle for linear component of system operator
   mfem::OperatorHandle & GetLinearOperator() const { return _linear_operator; };
+  /// Get the assembly level used to build this system's forms
+  mfem::AssemblyLevel GetAssemblyLevel() const { return _assembly_level; }
 
   /// Update variable from solution vector after solve
   virtual void SetTrialVariablesFromTrueVectors(const mfem::BlockVector & trueX) const;
@@ -219,8 +249,13 @@ protected:
   virtual void FormSystemMatrix(mfem::OperatorHandle & op,
                                 mfem::BlockVector & trueX,
                                 mfem::BlockVector & trueRHS);
-  /// Compute Jacobian matrix at the provided vector of true DoFs of trial variables
+  /// Compute Jacobian matrix at the provided vector of true DoFs of trial variables.
+  /// Used when EquationSystem assembly level is set to 'LEGACY'.
   void FormJacobianMatrix(const mfem::Vector & u);
+  /// Build the matrix-free Jacobian action at the provided vector of true DoFs of trial
+  /// variables. Used when EquationSystem assembly level is set to 'FULL', 'ELEMENT', 'PARTIAL',
+  /// or 'NONE'.
+  void FormJacobianOperator(const mfem::Vector & u);
 
   /**
    * Template method for applying BilinearFormIntegrators on domains from kernels to a BilinearForm,
@@ -331,7 +366,7 @@ protected:
   mutable mfem::OperatorHandle _jacobian;
   // Operator handle for the linear components of the system operator
   mutable mfem::OperatorHandle _linear_operator;
-  mfem::AssemblyLevel _assembly_level;
+  mfem::AssemblyLevel _assembly_level = mfem::AssemblyLevel::LEGACY;
 
   // Pointer to GridFunctions to enable updates during nonlinear iterations
   Moose::MFEM::GridFunctions * _gfuncs;

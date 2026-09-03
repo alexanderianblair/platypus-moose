@@ -71,8 +71,24 @@ MFEMPetscNonlinearSolver::ConstructSolver()
   solver->SetAbsTol(getParam<mfem::real_t>("abs_tol"));
   solver->SetMaxIter(getParam<unsigned int>("max_its"));
   solver->SetPrintLevel(getParam<unsigned int>("print_level"));
-  solver->SetJacobianType(mfem::Operator::PETSC_MATAIJ);
   _solver = std::move(solver);
+}
+
+void
+MFEMPetscNonlinearSolver::SetOperatorImpl(mfem::Operator & op)
+{
+  const auto & eqn_system = getMFEMProblem().getProblemData().eqn_system;
+  // Any assembly level other than legacy leaves the Jacobian as an unassembled operator. Asking
+  // PETSc for an AIJ matrix in that case would make it rebuild the Jacobian one column at a time
+  // (a Jacobian action per column), so pass the action itself through as a shell matrix. Note
+  // that this restricts the preconditioner to those needing only the operator action, e.g.
+  // '-pc_type none'.
+  const bool matrix_free =
+      eqn_system && eqn_system->GetAssemblyLevel() != mfem::AssemblyLevel::LEGACY;
+  auto & solver = cast_ref<mfem::PetscNonlinearSolver &>(GetSolver());
+  solver.SetJacobianType(matrix_free ? mfem::Operator::PETSC_MATSHELL
+                                     : mfem::Operator::PETSC_MATAIJ);
+  solver.SetOperator(op);
 }
 
 void

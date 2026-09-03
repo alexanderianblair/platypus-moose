@@ -30,6 +30,11 @@ public:
   void SetLinearSolver(mfem::Solver & solver) override;
   bool RequiresGradient() const override { return true; }
   bool RequiresExternalLinearSolver() const override { return false; }
+
+protected:
+  /// Choose the PETSc representation of the Jacobian to match the equation system's assembly
+  /// level before handing the operator to SNES.
+  void SetOperatorImpl(mfem::Operator & op) override;
 };
 
 #endif

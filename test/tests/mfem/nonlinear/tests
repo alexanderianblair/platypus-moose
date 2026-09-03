@@ -25,6 +25,35 @@
       recover = false
     []
   []
+  [MFEMMatrixFreeNonLinearDiffusion]
+    design = 'EquationSystem.md'
+    requirement = 'The system shall have the ability to solve a nonlinear diffusion problem without ever assembling the Jacobian as a matrix, using the'
+    [newton]
+      type = CSVDiff
+      input = nldiffusion_matrix_free.i
+      cli_args = 'Executioner/assembly_level=partial '
+                 'VectorPostprocessors/active=point_sample Outputs/active=csv'
+      csvdiff = 'nldiffusion_matrix_free_csv_point_sample_0001.csv'
+      detail = 'native MFEM Newton solver, driving GMRES on the matrix-free Jacobian action preconditioned by its diagonal, and the'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+    [petsc]
+      type = CSVDiff
+      input = nldiffusion_petsc.i
+      cli_args = 'Executioner/assembly_level=partial '
+                 'Solvers/petsc_nl/petsc_options_value=none '
+                 'VectorPostprocessors/active=point_sample Outputs/active=csv'
+      csvdiff = 'nldiffusion_petsc_csv_point_sample_0001.csv'
+      detail = 'MFEM PETSc nonlinear solver, passing the Jacobian action to SNES as a shell matrix.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+      prereq = 'nl_solvers/MFEMPetscNonLinearDiffusion'
+      max_parallel = 15 # mfem/mfem#5375
+    []
+  []
   [MFEMNonLinearDiffusionNonZeroRHS]
     design = 'EquationSystem.md'
     type = XMLDiff

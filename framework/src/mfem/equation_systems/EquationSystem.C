@@ -16,6 +16,22 @@
 
 namespace Moose::MFEM
 {
+JacobianOperator::JacobianOperator(const mfem::Operator & linear_operator,
+                                   const mfem::Operator & nonlinear_gradient)
+  : mfem::SumOperator(&linear_operator, 1.0, &nonlinear_gradient, 1.0, false, false),
+    _linear_operator(linear_operator),
+    _nonlinear_gradient(nonlinear_gradient)
+{
+}
+
+void
+JacobianOperator::AssembleDiagonal(mfem::Vector & diag) const
+{
+  _linear_operator.AssembleDiagonal(diag);
+  _nonlinear_diag.SetSize(diag.Size());
+  _nonlinear_gradient.AssembleDiagonal(_nonlinear_diag);
+  diag += _nonlinear_diag;
+}
 
 EquationSystem::~EquationSystem()
 {
@@ -446,6 +462,17 @@ EquationSystem::FormJacobianMatrix(const mfem::Vector & u)
   _jacobian.Reset(mfem::HypreParMatrixFromBlocks(_jacobian_blocks));
 }
 
+void
+EquationSystem::FormJacobianOperator(const mfem::Vector & u)
+{
+  mooseAssert(_test_var_names.size() == 1 && _test_var_names.size() == _trial_var_names.size(),
+              "Non-legacy assembly is only supported for single test and trial variable systems");
+
+  // Single-variable system, so the update vector is the sole block of true DoFs.
+  auto & nlf_grad = _nlfs.Get(_test_var_names.at(0))->GetGradient(u);
+  _jacobian.Reset(new JacobianOperator(*_linear_operator, nlf_grad));
+}
+
 mfem::Operator &
 EquationSystem::GetGradient(const mfem::Vector & u) const
 {
@@ -453,10 +480,10 @@ EquationSystem::GetGradient(const mfem::Vector & u) const
 
   if (_non_linear)
   {
-    if (_assembly_level != mfem::AssemblyLevel::LEGACY)
-      mooseError("MFEM nonlinear solvers that require GetGradient() currently require legacy "
-                 "assembly in EquationSystem.");
-    const_cast<EquationSystem *>(this)->FormJacobianMatrix(u);
+    if (_assembly_level == mfem::AssemblyLevel::LEGACY)
+      const_cast<EquationSystem *>(this)->FormJacobianMatrix(u);
+    else
+      const_cast<EquationSystem *>(this)->FormJacobianOperator(u);
   }
   else
     _jacobian = _linear_operator;
