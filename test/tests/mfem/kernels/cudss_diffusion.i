@@ -1,0 +1,97 @@
+[Mesh]
+  type = MFEMFileMesh
+  file = ../mesh/mug.e
+[]
+
+[Problem]
+  type = MFEMProblem
+[]
+
+[FESpaces]
+  [H1FESpace]
+    type = MFEMScalarFESpace
+    fec_type = H1
+    fec_order = FIRST
+  []
+  [HCurlFESpace]
+    type = MFEMVectorFESpace
+    fec_type = ND
+    fec_order = FIRST
+  []
+[]
+
+[Variables]
+  [concentration]
+    type = MFEMVariable
+    fespace = H1FESpace
+  []
+[]
+
+[AuxVariables]
+  [concentration_gradient]
+    type = MFEMVariable
+    fespace = HCurlFESpace
+  []
+[]
+
+[AuxKernels]
+  [grad]
+    type = MFEMGradAux
+    variable = concentration_gradient
+    source = concentration
+    execute_on = TIMESTEP_END
+  []
+[]
+
+[BCs]
+  [bottom]
+    type = MFEMScalarDirichletBC
+    variable = concentration
+    boundary = 'bottom'
+    coefficient = 1.0
+  []
+  [top]
+    type = MFEMScalarDirichletBC
+    variable = concentration
+    boundary = 'top'
+  []
+[]
+
+[Kernels]
+  [diff]
+    type = MFEMDiffusionKernel
+    variable = concentration
+  []
+[]
+
+
+[Solvers]
+  [main]
+    type = MFEMCuDSS
+  []
+[]
+
+[Executioner]
+  type = MFEMSteady
+  device = cuda
+[]
+
+[Postprocessors]
+  [solution_l2_norm]
+    type = MFEML2Error
+    variable = concentration
+    function = 0
+  []
+[]
+
+[Outputs]
+  [ParaViewDataCollection]
+    type = MFEMParaViewDataCollection
+    file_base = OutputData/CuDSSDiffusion
+    vtk_format = ASCII
+  []
+  [CuDSSDiffusionCSV]
+    type = CSV
+    file_base = OutputData/CuDSSDiffusion
+  []
+[]

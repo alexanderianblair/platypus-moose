@@ -330,4 +330,24 @@
     compute_devices = 'cpu cuda'
     recover = false
   []
+  [MFEMCuDSSDiffusion]
+    type = CSVDiff
+    input = cudss_diffusion.i
+    csvdiff = 'OutputData/CuDSSDiffusion.csv'
+    requirement = 'The system shall have the ability to solve a diffusion problem with Dirichlet BCs using MFEM with a direct solve on the GPU using the cuDSS library.'
+    capabilities = 'mfem'
+    compute_devices = 'cuda'
+    max_parallel = 1 # hypre reserves a 4GiB umpire device pool per rank
+    recover = false
+  []
+  [MFEMCuDSSDarcy]
+    type = CSVDiff
+    input = cudss_darcy.i
+    csvdiff = 'OutputData/CuDSSDarcy.csv'
+    requirement = 'The system shall have the ability to solve a mixed Darcy problem in two dimensions using MFEM with a direct solve on the GPU using the cuDSS library.'
+    capabilities = 'mfem'
+    compute_devices = 'cuda'
+    max_parallel = 1 # hypre reserves a 4GiB umpire device pool per rank
+    recover = false
+  []
 []

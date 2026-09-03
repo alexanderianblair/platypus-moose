@@ -38,6 +38,7 @@ if [ -n "$help" ]; then
   echo
   echo "Influential variables"
   echo "CONDUIT_DIR              Path to conduit; default: ../framework/contrib/conduit/installed"
+  echo "CUDSS_DIR                Path to cuDSS install prefix; enables cuDSS if set"
   echo "LIBMESH_DIR              Path to libmesh (for netcdf); default: ../libmesh/installed"
   echo "MFEM_DIR                 MFEM install prefix; default: ../framework/contrib/mfem/installed"
   echo "MFEM_SRC_DIR             Path to MFEM source; default: ../framework/contrib/mfem from submodule"
@@ -77,6 +78,13 @@ if [ -z "$PETSC_DIR" ]; then
   PETSC_ARCH="arch-moose"
 fi
 : ${HDF5_DIR:=$PETSC_DIR/$PETSC_ARCH}
+
+# Enable cuDSS only if a cuDSS install has been specified
+if [ -n "$CUDSS_DIR" ]; then
+  CUDSS_OPTIONS=(-DMFEM_USE_CUDSS=YES -DCUDSS_DIR="$CUDSS_DIR")
+else
+  CUDSS_OPTIONS=()
+fi
 
 # Overwrite GSLIB repo URL if GSLIB_DIR looks like a git repo
 if [ -n "$GSLIB_DIR" ] && [ -d "$GSLIB_DIR/.git" ]; then
@@ -164,6 +172,8 @@ do
       \
       -DBLAS_LIBRARIES="$OPENBLAS_LIB" \
       -DLAPACK_LIBRARIES="$OPENBLAS_LIB" \
+      \
+      "${CUDSS_OPTIONS[@]}" \
       \
       "$@"
   fi
