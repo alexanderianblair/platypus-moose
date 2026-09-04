@@ -40,6 +40,20 @@ that may serve as a useful starting point for users to adapt.
   field around a topologically closed toroidal conductor carrying a net current, using a magnetic
   vector potential discretized using $H(\mathrm{curl})$ conforming Nédélec elements.
 
+## Plasma Problems
+
+- [Grad-Shafranov](syntax/MFEM/GradShafranov.md): Solves the Grad-Shafranov equation for the
+  poloidal flux of an axisymmetric plasma equilibrium on the $(R, z)$ half-plane, discretized
+  using $H^1$ conforming elements. The Solov'ev choice of constant source profiles makes the
+  problem linear and admits a closed-form solution, so the example doubles as a verification
+  case.
+
+- [Free-Boundary Grad-Shafranov](syntax/MFEM/FreeBoundaryEquilibrium.md): Solves the same
+  equation without imposing the plasma boundary. The plasma current profile depends on the
+  normalised flux, so the problem is nonlinear and is closed by Picard iteration; the plasma
+  shape, its magnetic axis and its Shafranov shift all follow from the balance between the
+  plasma current and prescribed poloidal field coil currents.
+
 ## Fluid Problems
 
 - [Darcy](syntax/MFEM/Darcy.md): Solves a 2D mixed Darcy problem. This is a saddle point

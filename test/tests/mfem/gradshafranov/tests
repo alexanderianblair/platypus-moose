@@ -1,0 +1,100 @@
+[Tests]
+  design = 'syntax/MFEM/GradShafranov.md MFEMVariableExtremeValue.md'
+  issues = '#29632'
+  [gradshafranov]
+    type = CSVDiff
+    input = gradshafranov.i
+    csvdiff = 'OutputData/GradShafranov.csv'
+    requirement = 'The system shall have the ability to solve the Grad-Shafranov equation for an '
+                  'axisymmetric plasma equilibrium using MFEM, recovering the analytic Solovev '
+                  'poloidal flux and the poloidal field magnitude derived from it.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [convergence]
+    requirement = 'The system shall converge to the analytic Solovev solution of the Grad-Shafranov '
+                  'equation at second order in the L2 norm when first order H1 elements are used on '
+                  'a mesh refined'
+    [refine0]
+      type = CSVDiff
+      input = gradshafranov.i
+      csvdiff = 'OutputData/GradShafranovRefine0.csv'
+      cli_args = 'Mesh/uniform_refine=0 Outputs/active=csv '
+                 'Outputs/csv/file_base=OutputData/GradShafranovRefine0'
+      detail = 'zero times,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+    [refine1]
+      type = CSVDiff
+      input = gradshafranov.i
+      csvdiff = 'OutputData/GradShafranovRefine1.csv'
+      cli_args = 'Mesh/uniform_refine=1 Outputs/active=csv '
+                 'Outputs/csv/file_base=OutputData/GradShafranovRefine1'
+      detail = 'once, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+    [refine3]
+      type = CSVDiff
+      input = gradshafranov.i
+      csvdiff = 'OutputData/GradShafranovRefine3.csv'
+      cli_args = 'Mesh/uniform_refine=3 Outputs/active=csv '
+                 'Outputs/csv/file_base=OutputData/GradShafranovRefine3'
+      detail = 'three times.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+  []
+  [exact_at_fourth_order]
+    type = CSVDiff
+    input = gradshafranov.i
+    csvdiff = 'OutputData/GradShafranovFourthOrder.csv'
+    cli_args = 'FESpaces/H1FESpace/fec_order=FOURTH Mesh/uniform_refine=1 Outputs/active=csv '
+               'Outputs/csv/file_base=OutputData/GradShafranovFourthOrder'
+    # The analytic solution is a quartic polynomial, so it lies in the fourth
+    # order H1 space and is reproduced to solver round-off. This pins the source
+    # term and the 1/R weight of the weak form, not just their convergence rate.
+    requirement = 'The system shall reproduce the analytic Solovev solution of the Grad-Shafranov '
+                  'equation to solver tolerance when the fourth order H1 space containing that '
+                  'quartic solution is used.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+    abs_zero = 1e-10
+  []
+  [freeboundary]
+    design = 'syntax/MFEM/FreeBoundaryEquilibrium.md MFEMVariableExtremeValue.md'
+    requirement = 'The system shall have the ability to solve the free-boundary Grad-Shafranov '
+                  'equation for an axisymmetric plasma equilibrium using MFEM, taking the plasma '
+                  'boundary from the computed flux distribution rather than imposing it, and shall'
+    [equilibrium]
+      type = CSVDiff
+      input = freeboundary.i
+      csvdiff = 'OutputData/FreeBoundary.csv
+                 OutputData/FreeBoundaryProfile_midplane_0041.csv'
+      detail = 'converge to that equilibrium by Picard iteration, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+    [timestep_independence]
+      type = CSVDiff
+      input = freeboundary.i
+      csvdiff = 'OutputData/FreeBoundaryPseudoTimeStep.csv'
+      cli_args = 'Executioner/dt=5.0 Outputs/active=csv '
+                 'Outputs/csv/file_base=OutputData/FreeBoundaryPseudoTimeStep'
+      # The pseudo-time derivative only damps each Picard update, so the fixed
+      # point it converges to must not depend on the step size. The final row of
+      # this gold file matches that of OutputData/FreeBoundary.csv.
+      detail = 'reach the same equilibrium when the pseudo-time step damping each iteration is changed.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+      recover = false
+    []
+  []
+[]
