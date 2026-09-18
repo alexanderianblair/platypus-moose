@@ -32,4 +32,18 @@
                   'complex equation system.'
     capabilities = 'mfem'
   []
+  [MFEMOrthoSolverNeumannDiffusion]
+    type = CSVDiff
+    input = ortho_neumann_diffusion.i
+    csvdiff = 'OutputData/OrthoNeumannDiffusion.csv'
+    design = 'MFEMOrthoSolver.md'
+    issues = '#29632'
+    requirement = 'The system shall have the ability to solve a singular MFEM equation system '
+                  'arising from pure Neumann boundary conditions by orthogonalising the solve '
+                  'against the constant nullspace.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+    abs_zero = 1e-6
+  []
 []
