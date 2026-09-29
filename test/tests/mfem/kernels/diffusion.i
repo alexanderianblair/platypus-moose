@@ -124,4 +124,13 @@
     file_base = OutputData/ConduitDataCollection/Run
     protocol = conduit_bin
   []
+  [CellGridDataCollection]
+    type = MFEMCellGridDataCollection
+    file_base = OutputData/CellGridDataCollection
+  []
+  [CellGridDataCollectionJSON]
+    type = MFEMCellGridDataCollection
+    file_base = OutputData/CellGridDataCollectionJSON
+    encoding = JSON
+  []
 []

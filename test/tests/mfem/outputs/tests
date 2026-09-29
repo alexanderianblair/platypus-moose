@@ -19,4 +19,56 @@
     compute_devices = 'cpu cuda'
     recover = false
   []
+  [MFEMCellGridDataCollection]
+    type = CheckFiles
+    input = ../kernels/diffusion.i
+    cli_args = 'Outputs/active="CellGridDataCollection CellGridDataCollectionJSON"'
+    check_files = 'OutputData/CellGridDataCollection/Run0/Run0_000001.dg '
+                  'OutputData/CellGridDataCollection/Run0/Cycle000001/proc000000.dg '
+                  'OutputData/CellGridDataCollectionJSON/Run0/Run0_000001.dg '
+                  'OutputData/CellGridDataCollectionJSON/Run0/Cycle000001/proc000000.dg'
+    requirement = 'The system shall have the ability to write out MFEM solutions to VTK cell grid '
+                  'files in binary (MessagePack) and text (JSON) encodings.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [MFEMCellGridDataCollectionContent]
+    type = RunCommand
+    command = 'python3 check_cellgrid.py OutputData/CellGridDataCollectionJSON/Run0/Run0_000001.dg '
+              '--cells vtkDGHex=2476 --space concentration=HGRAD:1 '
+              '--space concentration_gradient=HCURL:1'
+    prereq = MFEMCellGridDataCollection
+    requirement = 'The system shall write VTK cell grid files covering the complete mesh, with '
+                  'consistent array sizes and connectivity, and with H1 and H(curl) variables '
+                  'stored in the matching VTK function spaces.'
+    capabilities = 'mfem'
+    recover = false
+  []
+  [MFEMCellGridDataCollectionParallel]
+    type = CheckFiles
+    input = ../kernels/diffusion.i
+    cli_args = 'Outputs/active=CellGridDataCollectionJSON '
+               'Outputs/CellGridDataCollectionJSON/file_base=OutputData/CellGridParallel'
+    check_files = 'OutputData/CellGridParallel/Run0/Run0_000001.dg '
+                  'OutputData/CellGridParallel/Run0/Cycle000001/proc000000.dg '
+                  'OutputData/CellGridParallel/Run0/Cycle000001/proc000001.dg'
+    min_parallel = 2
+    max_parallel = 2
+    requirement = 'The system shall write one VTK cell grid piece per process, indexed by a '
+                  'composite file, when run in parallel.'
+    capabilities = 'mfem'
+    recover = false
+  []
+  [MFEMCellGridDataCollectionParallelContent]
+    type = RunCommand
+    command = 'python3 check_cellgrid.py OutputData/CellGridParallel/Run0/Run0_000001.dg '
+              '--cells vtkDGHex=2476 --space concentration=HGRAD:1 '
+              '--space concentration_gradient=HCURL:1'
+    prereq = MFEMCellGridDataCollectionParallel
+    requirement = 'The system shall write parallel VTK cell grid pieces that together cover the '
+                  'complete mesh with consistent data.'
+    capabilities = 'mfem'
+    recover = false
+  []
 []
