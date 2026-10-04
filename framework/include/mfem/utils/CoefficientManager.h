@@ -177,6 +177,10 @@ public:
   /// are re-projected on next use.
   void markSolutionChanged();
 
+  /// Re-project the stored values of every stale quadrature function coefficient. Call before
+  /// assembling forms, since device assembly reads the stored values without re-projecting them.
+  void refreshQuadratureFunctions();
+
 private:
   ScalarMap _scalar_coeffs;
   VectorMap _vector_coeffs;

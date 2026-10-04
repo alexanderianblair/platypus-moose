@@ -495,6 +495,10 @@ EquationSystem::BuildLinearForms()
     auto lf = _lfs.GetShared(test_var_name);
     ApplyDomainLFIntegrators(test_var_name, lf, _kernels_map);
     ApplyBoundaryLFIntegrators(test_var_name, lf, _integrated_bc_map);
+    // Assemble on the device instead of looping over elements on the host. MFEM falls back to
+    // host assembly if any integrator lacks device support. Must follow the integrator setup.
+    if (mfem::Device::IsEnabled())
+      lf->UseFastAssembly(true);
     lf->Assemble();
   }
 
@@ -584,6 +588,8 @@ EquationSystem::BuildMixedBilinearForms()
 void
 EquationSystem::BuildEquationSystem()
 {
+  if (_coefficient_manager)
+    _coefficient_manager->refreshQuadratureFunctions();
   BuildBilinearForms();
   BuildMixedBilinearForms();
   BuildLinearForms();

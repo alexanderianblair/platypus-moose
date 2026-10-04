@@ -46,7 +46,18 @@ public:
   /// source to be re-projected on next use.
   void MarkSolutionChanged() { _dirty |= _update_policy == UpdatePolicy::NONLINEAR; }
 
+  /// Re-project the stored values now if they are stale. Needed before device assembly: MFEM's
+  /// device integrators read the quadrature function directly, bypassing the lazy Eval/Project.
+  void RefreshIfDirty()
+  {
+    if (_dirty)
+      Refresh();
+  }
+
 protected:
+  /// Re-project the source coefficient into the stored values and clear the dirty flag.
+  virtual void Refresh() = 0;
+
   /// Mark the stored values as stale following a change of time.
   void MarkTimeChanged() { _dirty |= _update_policy != UpdatePolicy::NONE; }
 

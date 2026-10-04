@@ -11,6 +11,22 @@
 
 #include "MFEMQuadratureFunctionBase.h"
 
+namespace
+{
+mfem::QuadratureSpace
+makeQuadratureSpace(mfem::ParMesh & mesh, const int order)
+{
+  // MFEM's device integrators build their quadrature space from an IntegrationRule, recording the
+  // rule's exact order (e.g. 3 for the 2-point Gauss rule returned for order 2), and require the
+  // order of any quadrature function they read to match. Construct from the same rule so the
+  // points and recorded order agree. That constructor rejects mixed-geometry meshes, which device
+  // assembly does not support, so those keep the order-based constructor.
+  if (mesh.GetNumGeometries(mesh.Dimension()) <= 1)
+    return mfem::QuadratureSpace(mesh, mfem::IntRules.Get(mesh.GetTypicalElementGeometry(), order));
+  return mfem::QuadratureSpace(&mesh, order);
+}
+}
+
 InputParameters
 MFEMQuadratureFunctionBase::validParams()
 {
@@ -34,7 +50,7 @@ MFEMQuadratureFunctionBase::MFEMQuadratureFunctionBase(const InputParameters & p
   : Function(parameters),
     _mfem_problem(
         cast_ref<MFEMProblem &>(*parameters.getCheckedPointerParam<SubProblem *>("_subproblem"))),
-    _qspace(&_mfem_problem.mesh().getMFEMParMesh(), getParam<int>("order"))
+    _qspace(makeQuadratureSpace(_mfem_problem.mesh().getMFEMParMesh(), getParam<int>("order")))
 {
 }
 

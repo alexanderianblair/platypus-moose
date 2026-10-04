@@ -48,7 +48,7 @@ public:
 
 private:
   /// Project the source coefficient into the quadrature function if invalidated.
-  void Refresh();
+  void Refresh() override;
 
   /// Source coefficient the stored values are projected from.
   mfem::VectorCoefficient * _source;

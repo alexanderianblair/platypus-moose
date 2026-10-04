@@ -244,6 +244,18 @@ CoefficientManager::markSolutionChanged()
   this->_scalar_coeffs.apply(mark_solution_changed);
   this->_vector_coeffs.apply(mark_solution_changed);
 }
+
+void
+CoefficientManager::refreshQuadratureFunctions()
+{
+  auto refresh = [](auto & coef)
+  {
+    if (auto * const qf_coef = dynamic_cast<MFEMQuadratureFunctionCoefficientBase *>(&coef))
+      qf_coef->RefreshIfDirty();
+  };
+  this->_scalar_coeffs.apply(refresh);
+  this->_vector_coeffs.apply(refresh);
+}
 }
 
 #endif
