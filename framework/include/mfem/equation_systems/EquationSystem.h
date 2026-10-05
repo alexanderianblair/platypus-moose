@@ -222,6 +222,14 @@ protected:
   /// Compute Jacobian matrix at the provided vector of true DoFs of trial variables
   void FormJacobianMatrix(const mfem::Vector & u);
 
+  /// Create a mixed bilinear form between two spaces, which may be defined on a mesh and a
+  /// submesh of it.
+  static std::shared_ptr<mfem::ParMixedBilinearForm>
+  CreateMixedBilinearForm(mfem::ParFiniteElementSpace * trial_fes,
+                          mfem::ParFiniteElementSpace * test_fes);
+  /// Assemble a mixed bilinear form created by CreateMixedBilinearForm.
+  static void AssembleMixedBilinearForm(mfem::ParMixedBilinearForm & mblf);
+
   /**
    * Template method for applying BilinearFormIntegrators on domains from kernels to a BilinearForm,
    * or MixedBilinearForm

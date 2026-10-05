@@ -12,6 +12,7 @@
 #include "EquationSystem.h"
 #include "MFEMLinearSolverBase.h"
 #include "CoefficientManager.h"
+#include "SubMeshMixedBilinearForm.h"
 #include "libmesh/int_range.h"
 
 namespace Moose::MFEM
@@ -558,8 +559,7 @@ EquationSystem::BuildMixedBilinearForms()
     for (const auto j : index_range(_coupled_var_names))
     {
       const auto & coupled_var_name = _coupled_var_names.at(j);
-      auto mblf = std::make_shared<mfem::ParMixedBilinearForm>(_coupled_pfespaces.at(j),
-                                                               _test_pfespaces.at(i));
+      auto mblf = CreateMixedBilinearForm(_coupled_pfespaces.at(j), _test_pfespaces.at(i));
       // Register MixedBilinearForm if kernels exist for it, and assemble kernels
       if (_kernels_map.Has(test_var_name) &&
           _kernels_map.Get(test_var_name)->Has(coupled_var_name) &&
@@ -570,7 +570,7 @@ EquationSystem::BuildMixedBilinearForms()
         ApplyDomainBLFIntegrators<mfem::ParMixedBilinearForm>(
             coupled_var_name, test_var_name, mblf, _kernels_map);
         // Assemble mixed bilinear forms
-        mblf->Assemble();
+        AssembleMixedBilinearForm(*mblf);
         // Register mixed bilinear forms associated with a single trial variable
         // for the current test variable
         test_mblfs->Register(coupled_var_name, mblf);
@@ -713,6 +713,24 @@ EquationSystem::GetLinearizationPoint() const
   if (!_linearization_point)
     mooseError("EquationSystem::GetLinearizationPoint() called before GetGradient().");
   return *_linearization_point;
+}
+
+std::shared_ptr<mfem::ParMixedBilinearForm>
+EquationSystem::CreateMixedBilinearForm(mfem::ParFiniteElementSpace * trial_fes,
+                                        mfem::ParFiniteElementSpace * test_fes)
+{
+  if (trial_fes->GetParMesh() != test_fes->GetParMesh())
+    return std::make_shared<SubMeshMixedBilinearForm>(trial_fes, test_fes);
+  return std::make_shared<mfem::ParMixedBilinearForm>(trial_fes, test_fes);
+}
+
+void
+EquationSystem::AssembleMixedBilinearForm(mfem::ParMixedBilinearForm & mblf)
+{
+  if (auto * const submesh_mblf = dynamic_cast<SubMeshMixedBilinearForm *>(&mblf))
+    submesh_mblf->Assemble();
+  else
+    mblf.Assemble();
 }
 
 std::shared_ptr<mfem::ParBilinearForm>

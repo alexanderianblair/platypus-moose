@@ -128,4 +128,16 @@
     valgrind = heavy
     min_slots = 3 # memory heavy
   []
+  [MFEMTATape]
+    design = 'MFEMMixedNormalCrossGradKernel.md'
+    issues = '#TBD'
+    type = CSVDiff
+    input = ta_tape.i
+    csvdiff = 'OutputData/TATape.csv'
+    requirement = 'MOOSE shall have the ability to solve the T-A formulation of a closed loop of thin superconducting tape carrying a prescribed total current, coupling a current vector potential on a boundary submesh representing the tape to a magnetic vector potential on the surrounding three-dimensional mesh.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+    restep = false
+  []
 []

@@ -99,8 +99,7 @@ TimeDependentEquationSystem::BuildMixedBilinearForms()
     for (const auto j : index_range(_coupled_var_names))
     {
       const auto & coupled_var_name = _coupled_var_names.at(j);
-      auto mblf = std::make_shared<mfem::ParMixedBilinearForm>(_coupled_pfespaces.at(j),
-                                                               _test_pfespaces.at(i));
+      auto mblf = CreateMixedBilinearForm(_coupled_pfespaces.at(j), _test_pfespaces.at(i));
       // Register MixedBilinearForm if kernels exist for it, and assemble kernels
       if (test_var_name != coupled_var_name)
       {
@@ -116,7 +115,7 @@ TimeDependentEquationSystem::BuildMixedBilinearForms()
         {
           // Assemble mixed bilinear forms
           mblf->SetAssemblyLevel(_assembly_level);
-          mblf->Assemble();
+          AssembleMixedBilinearForm(*mblf);
           // Register mixed bilinear forms associated with a single trial variable
           // for the current test variable
           test_mblfs->Register(coupled_var_name, mblf);
@@ -139,8 +138,7 @@ TimeDependentEquationSystem::BuildMixedBilinearForms()
     for (const auto j : index_range(_trial_var_names))
     {
       const auto & trial_var_name = _trial_var_names.at(j);
-      auto td_mblf = std::make_shared<mfem::ParMixedBilinearForm>(_test_pfespaces.at(j),
-                                                                  _test_pfespaces.at(i));
+      auto td_mblf = CreateMixedBilinearForm(_test_pfespaces.at(j), _test_pfespaces.at(i));
       // Register MixedBilinearForm if kernels exist for it, and assemble kernels
       if (test_var_name != trial_var_name)
       {
@@ -151,7 +149,7 @@ TimeDependentEquationSystem::BuildMixedBilinearForms()
         if (td_mblf->GetDBFI()->Size() || td_mblf->GetBBFI()->Size())
         {
           td_mblf->SetAssemblyLevel(_assembly_level);
-          td_mblf->Assemble();
+          AssembleMixedBilinearForm(*td_mblf);
           // Register mixed bilinear forms associated with a single trial variable
           // for the current test variable
           test_td_mblfs->Register(trial_var_name, td_mblf);
