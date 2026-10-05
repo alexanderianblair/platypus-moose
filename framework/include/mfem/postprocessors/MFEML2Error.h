@@ -29,8 +29,18 @@ public:
   virtual PostprocessorValue getValue() const override final;
 
 private:
+  /// Whether the error can be computed with device kernels on quadrature functions, rather than
+  /// with mfem::GridFunction::ComputeL2Error, which loops over elements on the host.
+  bool useQuadratureFunctions() const;
+
   mfem::Coefficient & _coeff;
   mfem::GridFunction & _var;
+  /// Quadrature space for the device evaluation, on the rule ComputeL2Error would use. Rebuilt
+  /// when the FE space changes. Kept alive between evaluations because the FE space caches its
+  /// quadrature interpolators by quadrature space address.
+  mutable std::unique_ptr<mfem::QuadratureSpace> _qspace;
+  /// FE space sequence number _qspace was built for.
+  mutable long _fes_sequence = -1;
 };
 
 #endif
