@@ -12,6 +12,9 @@
 #include "TimeDependentEquationSystemProblemOperator.h"
 #include "MFEMProblem.h"
 
+#include <cmath>
+#include <limits>
+
 namespace Moose::MFEM
 {
 TimeDependentEquationSystemProblemOperator::TimeDependentEquationSystemProblemOperator(
@@ -39,17 +42,19 @@ TimeDependentEquationSystemProblemOperator::Init()
 {
   TimeDependentProblemOperator::Init();
   // Set timestepper
-  auto & ode_solver = _problem_data.ode_solver;
-  ode_solver = std::make_unique<mfem::BackwardEulerSolver>();
-  ode_solver->Init(*(this));
+  const auto & ode_solver_factory = _problem_data.ode_solver_factory;
+  _ode_solver =
+      ode_solver_factory ? ode_solver_factory() : std::make_unique<mfem::BackwardEulerSolver>();
+  _ode_solver->Init(*(this));
   SetTime(_problem.time());
-  SetImplicitVariableType(STATE);
+  // Implicit stages are solved for the stage state, so return it where the ODE solver accepts it
+  SetImplicitVariableType(_ode_solver->SupportsImplicitVariableType(STATE) ? STATE : SLOPE);
 }
 
 void
 TimeDependentEquationSystemProblemOperator::Solve()
 {
-  auto & dt = _problem.dt();
+  const auto dt = _problem.dt();
   auto & gfs = _problem_data.gridfunctions;
   auto & tdm = _problem_data.time_derivative_map;
 
@@ -57,12 +62,40 @@ TimeDependentEquationSystemProblemOperator::Solve()
   for (const auto & trial_var_name : _trial_var_names)
     gfs.GetRef(tdm.getTimeDerivativeName(trial_var_name)) = gfs.GetRef(trial_var_name);
 
-  // Advance time step of the MFEM problem. Time is also updated here, and
-  // _problem_operator->SetTime is called inside the ode_solver->Step method to
-  // update the time used by time dependent (function) coefficients.
-  _problem_data.ode_solver->Step(*_trial_true_vector, _problem.time(), dt);
+  // Advance time step of the MFEM problem from the start of the step, which earlier problem
+  // operators may already have advanced the problem time beyond. SetTime is called inside the
+  // ode_solver->Step method to update the time used by time dependent (function) coefficients.
+  mfem::real_t time = _problem.timeOld();
+
+  // Initial conditions and transfers set only the local data of the trial variables, so update the
+  // true-DoF vector backing them, from which the ODE solver starts.
+  for (auto * const trial_var : _trial_variables)
+  {
+    trial_var->SetTrueVector();
+    trial_var->GetTrueVector().SyncAliasMemory(*_trial_true_vector);
+  }
+
+  // Stages advance constrained DoFs with the rate of change of the essential data, so impose the
+  // essential data themselves at the start of the step. This also imposes them on initial
+  // conditions inconsistent with them.
+  _problem_data.coefficients.setTime(time);
+  GetEquationSystem()->ApplyEssentialConstraints(_true_solution);
+  _ode_state = *_trial_true_vector;
+  mfem::real_t step_dt = dt;
+  _ode_solver->Step(_ode_state, time, step_dt);
+  _problem.time() = time;
+  // The last stage need not be evaluated at the end of the step, so restore the end of the step as
+  // the time seen by time dependent coefficients evaluated after the solve.
+  SetTime(time);
+  _problem_data.coefficients.setTime(time);
+
+  // Constrained DoFs approximate the essential data at the end of the step only to the order of
+  // the scheme, so impose the essential data exactly.
+  *_trial_true_vector = _ode_state;
+  GetEquationSystem()->ApplyEssentialConstraints(_true_solution);
   // Synchonise time dependent GridFunctions with updated DoF data.
   SetTrialVariablesFromTrueVectors();
+  _problem_data.coefficients.markSolutionChanged();
 
   // Set time derivatives
   for (const auto & trial_var_name : _trial_var_names)
@@ -70,24 +103,87 @@ TimeDependentEquationSystemProblemOperator::Solve()
 }
 
 void
-TimeDependentEquationSystemProblemOperator::ImplicitSolve(const mfem::real_t dt,
-                                                          const mfem::Vector &,
-                                                          mfem::Vector & X_new)
+TimeDependentEquationSystemProblemOperator::SetStageBaseState(const mfem::Vector & u)
 {
-  _problem_data.coefficients.setTime(GetTime());
-  FormEquationSystemOperator(dt);
+  const mfem::BlockVector block_u(const_cast<mfem::Vector &>(u), _block_true_offsets_trial);
+  GetEquationSystem()->SetTrialVariablesFromTrueVectors(block_u);
+}
 
-  auto * const es = GetEquationSystem();
-  SolveWithOperator(*es, _true_rhs, _true_x);
+mfem::real_t
+TimeDependentEquationSystemProblemOperator::EssentialRateStep() const
+{
+  // The fifth root of machine epsilon on the time scale of the timestep, which balances the O(h^4)
+  // truncation error of fourth order central differences against their O(eps/h) round-off error
+  return std::pow(std::numeric_limits<mfem::real_t>::epsilon(), 0.2) * _problem.dt();
+}
 
-  X_new.MakeRef(_true_x, 0);
+TimeDependentEquationSystem::SpatialTerms
+TimeDependentEquationSystemProblemOperator::GetSpatialTerms() const
+{
+  switch (GetEvalMode())
+  {
+    case ADDITIVE_TERM_1:
+      return TimeDependentEquationSystem::SpatialTerms::EXPLICIT;
+    case ADDITIVE_TERM_2:
+      return TimeDependentEquationSystem::SpatialTerms::IMPLICIT;
+    default:
+      return TimeDependentEquationSystem::SpatialTerms::ALL;
+  }
 }
 
 void
-TimeDependentEquationSystemProblemOperator::FormEquationSystemOperator(mfem::real_t dt)
+TimeDependentEquationSystemProblemOperator::Mult(const mfem::Vector & u, mfem::Vector & k) const
 {
-  GetEquationSystem()->SetTimeStep(dt);
-  GetEquationSystem()->FormSystem(_true_x, _true_rhs);
+  // mfem::TimeDependentOperator::Mult is const, but evaluating an explicit stage reassembles the
+  // equation system just as solving an implicit stage does.
+  const_cast<TimeDependentEquationSystemProblemOperator *>(this)->ExplicitSolve(u, k);
+}
+
+void
+TimeDependentEquationSystemProblemOperator::ExplicitSolve(const mfem::Vector & u, mfem::Vector & k)
+{
+  SetStageBaseState(u);
+  _problem_data.coefficients.setTime(GetTime());
+
+  const auto terms = GetSpatialTerms();
+  // The rate of change of the essential data is imposed by the implicit part of an IMEX scheme, so
+  // the explicit part leaves constrained DoFs unchanged.
+  std::optional<mfem::real_t> ess_rate_step;
+  if (terms == TimeDependentEquationSystem::SpatialTerms::ALL)
+    ess_rate_step = EssentialRateStep();
+
+  auto & es = *GetEquationSystem();
+  es.FormExplicitStage(terms, GetTime(), ess_rate_step, _true_x, _true_rhs);
+
+  // The system of an explicit stage is the mass system alone, so is linear even when the equation
+  // system has nonlinear terms, which have been evaluated into the right hand side.
+  if (!_problem_data.jacobian_solver)
+    mooseError("Evaluating an explicit stage requires a linear solver to invert the mass operator, "
+               "but none was provided.");
+  auto & linear_solver = *_problem_data.jacobian_solver;
+  linear_solver.SetOperator(*es.GetLinearOperator());
+  linear_solver.Mult(_true_rhs, _true_x);
+
+  k = _true_x;
+}
+
+void
+TimeDependentEquationSystemProblemOperator::ImplicitSolve(const mfem::real_t gamma,
+                                                          const mfem::Vector & u,
+                                                          mfem::Vector & k)
+{
+  SetStageBaseState(u);
+  _problem_data.coefficients.setTime(GetTime());
+
+  auto & es = *GetEquationSystem();
+  es.FormImplicitStage(
+      gamma, GetSpatialTerms(), GetTime(), EssentialRateStep(), _true_x, _true_rhs);
+  SolveWithOperator(es, _true_rhs, _true_x);
+
+  if (ImplicitVarTypeIsState())
+    k = _true_x;
+  else
+    subtract(1.0 / gamma, _true_x, u, k);
 }
 
 } // namespace Moose::MFEM

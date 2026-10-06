@@ -25,6 +25,10 @@ and/or the `createLFIntegrator` methods to return a `BilinearFormIntegrator` and
 `LinearFormIntegrator` (respectively) to add to the `EquationSystem`. Derived classes could also
 override `createNLIntegrator` to solve non-linear problems using [EquationSystem.md].
 
+In transient problems solved with an implicit-explicit (IMEX) time integration scheme, the
+`implicit` parameter selects whether the integrators of the kernel are treated implicitly or
+explicitly. See [TimeDependentEquationSystem.md].
+
 !if-end!
 
 !else

@@ -217,6 +217,14 @@ protected:
   /// Compute Jacobian matrix at the provided vector of true DoFs of trial variables
   void FormJacobianMatrix(const mfem::Vector & u);
 
+  /// Add an object to the container of objects contributing to the weak form of test_var_name
+  /// from trial_var_name.
+  template <class T>
+  static void AddToNestedMap(NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<T>>>> & map,
+                             const std::string & test_var_name,
+                             const std::string & trial_var_name,
+                             std::shared_ptr<T> object);
+
   /**
    * Template method for applying BilinearFormIntegrators on domains from kernels to a BilinearForm,
    * or MixedBilinearForm
@@ -346,6 +354,25 @@ private:
   /// Disallowed inherited method
   using mfem::Operator::RecoverFEMSolution;
 };
+
+template <class T>
+void
+EquationSystem::AddToNestedMap(
+    NamedFieldsMap<NamedFieldsMap<std::vector<std::shared_ptr<T>>>> & map,
+    const std::string & test_var_name,
+    const std::string & trial_var_name,
+    std::shared_ptr<T> object)
+{
+  // Register new map if not present for the test variable
+  if (!map.Has(test_var_name))
+    map.Register(test_var_name,
+                 std::make_shared<NamedFieldsMap<std::vector<std::shared_ptr<T>>>>());
+  // Register new vector if not present for the test/trial variable pair
+  if (!map.Get(test_var_name)->Has(trial_var_name))
+    map.Get(test_var_name)
+        ->Register(trial_var_name, std::make_shared<std::vector<std::shared_ptr<T>>>());
+  map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(object));
+}
 
 template <class FormType>
 void

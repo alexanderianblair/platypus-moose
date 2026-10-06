@@ -21,8 +21,6 @@ public:
 
   explicit MFEMTransient(const InputParameters & params);
 
-  virtual void init() override;
-
   /// Return the solve object wrapped by time stepper
   virtual SolveObject * timeStepSolveObject() override { return &_mfem_problem_solve; }
 

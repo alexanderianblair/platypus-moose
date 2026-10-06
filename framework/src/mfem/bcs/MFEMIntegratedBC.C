@@ -15,11 +15,18 @@ InputParameters
 MFEMIntegratedBC::validParams()
 {
   InputParameters params = MFEMBoundaryCondition::validParams();
+  params.addParam<bool>(
+      "implicit",
+      true,
+      "Whether this boundary condition is treated implicitly by implicit-explicit "
+      "(IMEX) time integration schemes. Ignored by fully implicit and fully "
+      "explicit schemes.");
+  params.addParamNamesToGroup("implicit", "Advanced");
   return params;
 }
 
 MFEMIntegratedBC::MFEMIntegratedBC(const InputParameters & parameters)
-  : MFEMBoundaryCondition(parameters)
+  : MFEMBoundaryCondition(parameters), _is_implicit(getParam<bool>("implicit"))
 {
 }
 

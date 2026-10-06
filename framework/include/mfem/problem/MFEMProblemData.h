@@ -18,19 +18,22 @@
 #include "MFEMLinearSolverBase.h"
 #include "MFEMNonlinearSolverBase.h"
 #include "MFEMRefinementMarker.h"
+#include <functional>
 
 /// Base problem data struct.
 struct MFEMProblemData
 {
 public:
   MFEMProblemData() = default;
-  virtual ~MFEMProblemData() { ode_solver.reset(); };
+  virtual ~MFEMProblemData() = default;
 
   std::shared_ptr<mfem::ParMesh> pmesh{nullptr};
   Moose::MFEM::SubMeshes submeshes;
   Moose::MFEM::CoefficientManager coefficients;
 
-  std::unique_ptr<mfem::ODESolver> ode_solver{nullptr};
+  /// Constructs the ODE solver with which each time-dependent problem operator advances its state.
+  /// Backward Euler is used if not set.
+  std::function<std::unique_ptr<mfem::ODESolver>()> ode_solver_factory;
   std::shared_ptr<Moose::MFEM::NonlinearSolverBase> nonlinear_solver{nullptr};
   std::shared_ptr<Moose::MFEM::LinearSolverBase> jacobian_solver{nullptr};
 

@@ -38,6 +38,15 @@ public:
   /// DG BCs are added to (Bi)linear forms with a different method, so
   /// we first perform this check to see what we are dealing with.
   virtual bool isDGBC() const { return false; }
+
+  /// Whether the boundary condition is treated implicitly by implicit-explicit (IMEX) time
+  /// integration schemes.
+  bool isImplicit() const { return _is_implicit; }
+
+private:
+  /// Whether the boundary condition is treated implicitly by implicit-explicit (IMEX) time
+  /// integration schemes.
+  const bool _is_implicit;
 };
 
 #endif

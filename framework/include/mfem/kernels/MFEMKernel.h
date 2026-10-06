@@ -46,9 +46,16 @@ public:
   /// we first perform this check to see what we are dealing with.
   virtual bool isDGKernel() const { return false; }
 
+  /// Whether the kernel is treated implicitly by implicit-explicit (IMEX) time integration schemes.
+  bool isImplicit() const { return _is_implicit; }
+
 protected:
   /// Name of (the test variable associated with) the weak form that the kernel is applied to.
   const VariableName & _test_var_name;
+
+private:
+  /// Whether the kernel is treated implicitly by implicit-explicit (IMEX) time integration schemes.
+  const bool _is_implicit;
 };
 
 #endif

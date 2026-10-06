@@ -24,6 +24,12 @@ MFEMKernel::validParams()
   params.registerSystemAttributeName("Kernel");
   params.addParam<VariableName>("variable",
                                 "Variable labelling the weak form this kernel is added to");
+  params.addParam<bool>(
+      "implicit",
+      true,
+      "Whether this kernel is treated implicitly by implicit-explicit (IMEX) time "
+      "integration schemes. Ignored by fully implicit and fully explicit schemes.");
+  params.addParamNamesToGroup("implicit", "Advanced");
   return params;
 }
 
@@ -31,7 +37,8 @@ MFEMKernel::MFEMKernel(const InputParameters & parameters)
   : MFEMObject(parameters),
     MFEMBlockRestrictable(parameters,
                           getMFEMProblem().getMFEMVariableMesh(getParam<VariableName>("variable"))),
-    _test_var_name(getParam<VariableName>("variable"))
+    _test_var_name(getParam<VariableName>("variable")),
+    _is_implicit(getParam<bool>("implicit"))
 {
 }
 

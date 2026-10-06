@@ -18,7 +18,14 @@
 namespace Moose::MFEM
 {
 
-/// Problem operator for time-dependent problems with an equation system.
+/**
+ * Problem operator for time-dependent problems with an equation system.
+ *
+ * Advances the trial variables with an mfem::ODESolver, for which this operator evaluates
+ * explicit stages in Mult() and solves implicit stages in ImplicitSolve(). The evaluation mode
+ * set by implicit-explicit (IMEX) schemes selects whether all spatial terms, or only those treated
+ * explicitly or implicitly, are included.
+ */
 class TimeDependentEquationSystemProblemOperator : public TimeDependentProblemOperator,
                                                    public EquationSystemInterface
 {
@@ -28,7 +35,12 @@ public:
 
   virtual void SetGridFunctions() override;
   virtual void Init() override;
-  virtual void ImplicitSolve(const mfem::real_t, const mfem::Vector &, mfem::Vector &) override;
+  /// Evaluate the slope k of an explicit stage at the stage base state u.
+  virtual void Mult(const mfem::Vector & u, mfem::Vector & k) const override;
+  /// Solve an implicit stage with stage coefficient gamma at the stage base state u, returning the
+  /// stage state or slope in k according to the implicit variable type.
+  virtual void
+  ImplicitSolve(const mfem::real_t gamma, const mfem::Vector & u, mfem::Vector & k) override;
   virtual void Solve() override;
 
   [[nodiscard]] virtual Moose::MFEM::TimeDependentEquationSystem *
@@ -40,11 +52,29 @@ public:
   }
 
 protected:
-  /// Form equation-system state for the current implicit time step.
-  void FormEquationSystemOperator(mfem::real_t dt);
+  /// Set the trial variables to the stage base state u.
+  void SetStageBaseState(const mfem::Vector & u);
+
+  /// Evaluate the slope k of an explicit stage at the stage base state u.
+  void ExplicitSolve(const mfem::Vector & u, mfem::Vector & k);
+
+  /// @returns the step of the central differences in time approximating the rate of change of the
+  /// essential data imposed on stage slopes.
+  mfem::real_t EssentialRateStep() const;
+
+  /// @returns the spatial terms included in stages by the current evaluation mode.
+  TimeDependentEquationSystem::SpatialTerms GetSpatialTerms() const;
 
 private:
   std::shared_ptr<Moose::MFEM::TimeDependentEquationSystem> _equation_system{nullptr};
+
+  /// ODE solver advancing the trial variables.
+  std::unique_ptr<mfem::ODESolver> _ode_solver{nullptr};
+
+  /// State advanced by the ODE solver. This is kept separate from the true-DoF vector backing the
+  /// trial variables, since the trial variables hold stage base states and nonlinear iterates
+  /// during a step.
+  mfem::Vector _ode_state;
 };
 
 } // namespace Moose::MFEM

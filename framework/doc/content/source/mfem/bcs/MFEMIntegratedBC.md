@@ -15,6 +15,10 @@ boundary integrators to the weak form on the set of user-specified boundaries.
 according to the test variable name returned from `getTestVariableName()`, similar to
 [MFEMKernel.md] for domain integrators.
 
+In transient problems solved with an implicit-explicit (IMEX) time integration scheme, the
+`implicit` parameter selects whether the integrators of the boundary condition are treated implicitly or
+explicitly. See [TimeDependentEquationSystem.md].
+
 !if-end!
 
 !else

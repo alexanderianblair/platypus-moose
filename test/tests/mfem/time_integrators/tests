@@ -1,0 +1,66 @@
+[Tests]
+  design = 'MFEMTransient.md TimeDependentEquationSystem.md'
+  issues = '#29632'
+
+  [convergence]
+    requirement = 'The system shall integrate MFEM problems with time-dependent essential and integrated boundary conditions in time, converging at the theoretical rate with'
+    [schemes]
+      type = MMSTest
+      input = test.py
+      test_case = TestSchemes
+      detail = 'implicit Runge-Kutta, explicit Runge-Kutta, and generalized-alpha schemes, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      max_threads = 1 # MMSTest drives its own runs through mms.run_temporal
+    []
+    [imex_schemes]
+      type = MMSTest
+      input = test.py
+      test_case = TestIMEXSchemes
+      detail = 'implicit-explicit schemes treating selected kernels and boundary conditions explicitly.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      max_threads = 1 # MMSTest drives its own runs through mms.run_temporal
+    []
+  []
+
+  [errors]
+    requirement = 'The system shall report an error if'
+    [scheme_and_mfem_scheme]
+      type = RunException
+      input = mms.i
+      cli_args = 'Executioner/scheme=implicit-euler Executioner/mfem_scheme=sdirk33'
+      expect_err = "Only one of 'scheme' and 'mfem_scheme' may be set."
+      detail = 'the time integration scheme of an MFEM problem is set by both scheme parameters,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+    [rho_inf]
+      type = RunException
+      input = mms.i
+      cli_args = 'Executioner/mfem_scheme=sdirk33 Executioner/rho_inf=0.5'
+      expect_err = 'Only used by the generalized-alpha scheme.'
+      detail = 'the high frequency damping of the generalized-alpha scheme is set for another scheme,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+    [explicit_mass_kernel]
+      type = RunException
+      input = mms.i
+      cli_args = 'Kernels/dudt/implicit=false'
+      expect_err = 'Kernels acting on time derivatives contribute to the mass operator'
+      detail = 'a kernel contributing to the mass operator is marked for explicit treatment, or'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+    [explicit_stage_without_mass]
+      type = RunException
+      input = mms.i
+      cli_args = 'Kernels/active="diffusion reaction source" Executioner/scheme=explicit-euler'
+      expect_err = "The equation tested by 'u' has no time derivative of 'u'"
+      detail = 'an explicit stage is requested for an equation with no time derivative.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+  []
+[]

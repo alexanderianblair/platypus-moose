@@ -96,20 +96,7 @@ EquationSystem::AddKernel(std::shared_ptr<MFEMKernel> kernel)
   const auto & test_var_name = kernel->getTestVariableName();
   AddCoupledVariableNameIfMissing(trial_var_name);
   AddTestVariableNameIfMissing(test_var_name);
-  // Register new kernels map if not present for the test variable
-  if (!_kernels_map.Has(test_var_name))
-  {
-    auto kernel_field_map =
-        std::make_shared<Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMKernel>>>>();
-    _kernels_map.Register(test_var_name, std::move(kernel_field_map));
-  }
-  // Register new kernels map if not present for the test/trial variable pair
-  if (!_kernels_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto kernels = std::make_shared<std::vector<std::shared_ptr<MFEMKernel>>>();
-    _kernels_map.Get(test_var_name)->Register(trial_var_name, std::move(kernels));
-  }
-  _kernels_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(kernel));
+  AddToNestedMap(_kernels_map, test_var_name, trial_var_name, std::move(kernel));
 }
 
 void
@@ -119,20 +106,7 @@ EquationSystem::AddIntegratedBC(std::shared_ptr<MFEMIntegratedBC> bc)
   const auto & test_var_name = bc->getTestVariableName();
   AddCoupledVariableNameIfMissing(trial_var_name);
   AddTestVariableNameIfMissing(test_var_name);
-  // Register new integrated bc map if not present for the test variable
-  if (!_integrated_bc_map.Has(test_var_name))
-  {
-    auto integrated_bc_field_map = std::make_shared<
-        Moose::MFEM::NamedFieldsMap<std::vector<std::shared_ptr<MFEMIntegratedBC>>>>();
-    _integrated_bc_map.Register(test_var_name, std::move(integrated_bc_field_map));
-  }
-  // Register new integrated bc map if not present for the test/trial variable pair
-  if (!_integrated_bc_map.Get(test_var_name)->Has(trial_var_name))
-  {
-    auto bcs = std::make_shared<std::vector<std::shared_ptr<MFEMIntegratedBC>>>();
-    _integrated_bc_map.Get(test_var_name)->Register(trial_var_name, std::move(bcs));
-  }
-  _integrated_bc_map.GetRef(test_var_name).Get(trial_var_name)->push_back(std::move(bc));
+  AddToNestedMap(_integrated_bc_map, test_var_name, trial_var_name, std::move(bc));
 }
 
 void
