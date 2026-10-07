@@ -58,18 +58,8 @@ makeODESolver(const std::string & scheme, const mfem::real_t rho_inf)
     return std::make_unique<mfem::RK3SSPSolver>();
   if (scheme == "rk4")
     return std::make_unique<mfem::RK4Solver>();
-  if (scheme == "rk6")
-    return std::make_unique<mfem::RK6Solver>();
-  if (scheme == "rk8")
-    return std::make_unique<mfem::RK8Solver>();
   if (scheme == "imex-euler")
     return std::make_unique<mfem::IMEXExpImplEuler>();
-  if (scheme == "imex-ars222")
-    return std::make_unique<mfem::IMEXRK2>();
-  if (scheme == "imex-ars232")
-    return std::make_unique<mfem::IMEXRK2_3StageExplicit>();
-  if (scheme == "imex-ars343")
-    return std::make_unique<mfem::IMEX_DIRK_RK3>();
   return nullptr;
 }
 }
@@ -81,13 +71,12 @@ MFEMTransient::validParams()
   params += TransientBase::validParams();
   params.addClassDescription("Executioner for transient MFEM problems.");
   MooseEnum mfem_schemes("implicit-midpoint sdirk23 sdirk33 sdirk34 esdirk32 esdirk33 "
-                         "generalized-alpha rk3-ssp rk4 rk6 rk8 imex-euler imex-ars222 "
-                         "imex-ars232 imex-ars343");
+                         "generalized-alpha rk3-ssp rk4 imex-euler");
   params.addParam<MooseEnum>(
       "mfem_scheme",
       mfem_schemes,
       "Time integration scheme provided by MFEM, for schemes not available through 'scheme'. "
-      "Implicit-explicit (IMEX) schemes treat kernels and integrated boundary conditions "
+      "The implicit-explicit (IMEX) scheme treats kernels and integrated boundary conditions "
       "explicitly if their 'implicit' parameter is false, and implicitly otherwise.");
   params.addRangeCheckedParam<Real>(
       "rho_inf",

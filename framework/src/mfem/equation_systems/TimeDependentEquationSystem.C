@@ -121,6 +121,9 @@ TimeDependentEquationSystem::FormExplicitStage(SpatialTerms terms,
 void
 TimeDependentEquationSystem::ApplyEssentialConstraints(mfem::BlockVector & x)
 {
+  // x may have been written as a whole since its blocks were last used, so update the memory
+  // validity of the blocks before modifying them
+  x.SyncToBlocks();
   EquationSystem::ApplyEssentialBCs();
   for (const auto i : index_range(_trial_var_names))
   {

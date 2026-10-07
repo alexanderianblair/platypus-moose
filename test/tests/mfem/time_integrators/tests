@@ -17,10 +17,33 @@
       type = MMSTest
       input = test.py
       test_case = TestIMEXSchemes
-      detail = 'implicit-explicit schemes treating selected kernels and boundary conditions explicitly.'
+      detail = 'an implicit-explicit scheme treating selected kernels and boundary conditions explicitly.'
       capabilities = 'mfem'
       compute_devices = 'cpu'
       max_threads = 1 # MMSTest drives its own runs through mms.run_temporal
+    []
+  []
+
+  [devices]
+    requirement = 'The system shall integrate MFEM problems with time-dependent essential and integrated boundary conditions in time on any supported compute device, with'
+    [explicit_and_implicit_stages]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'Executioner/scheme=crank-nicolson Outputs/file_base=crank_nicolson'
+      csvdiff = 'crank_nicolson.csv'
+      detail = 'a scheme combining explicit and implicit stages, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+    []
+    [imex]
+      type = CSVDiff
+      input = mms.i
+      cli_args = 'Executioner/mfem_scheme=imex-euler Kernels/reaction/implicit=false '
+                 'BCs/right/implicit=false Outputs/file_base=imex_euler'
+      csvdiff = 'imex_euler.csv'
+      detail = 'an implicit-explicit scheme treating selected kernels and boundary conditions explicitly.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
     []
   []
 
@@ -49,7 +72,7 @@
       input = mms.i
       cli_args = 'Kernels/dudt/implicit=false'
       expect_err = 'Kernels acting on time derivatives contribute to the mass operator'
-      detail = 'a kernel contributing to the mass operator is marked for explicit treatment, or'
+      detail = 'a kernel contributing to the mass operator is marked for explicit treatment,'
       capabilities = 'mfem'
       compute_devices = 'cpu'
     []
@@ -58,7 +81,16 @@
       input = mms.i
       cli_args = 'Kernels/active="diffusion reaction source" Executioner/scheme=explicit-euler'
       expect_err = "The equation tested by 'u' has no time derivative of 'u'"
-      detail = 'an explicit stage is requested for an equation with no time derivative.'
+      detail = 'an explicit stage is requested for an equation with no time derivative, or'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+    [explicit_stage_without_linear_solver]
+      type = RunException
+      input = mms.i
+      cli_args = 'Executioner/scheme=explicit-euler Solvers/active=""'
+      expect_err = 'Evaluating an explicit stage requires a linear solver to invert the mass operator'
+      detail = 'an explicit stage is requested without a linear solver to invert the mass operator.'
       capabilities = 'mfem'
       compute_devices = 'cpu'
     []

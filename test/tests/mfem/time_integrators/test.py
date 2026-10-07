@@ -28,9 +28,6 @@ SCHEMES = {
 IMEX_SPLIT = ["Kernels/reaction/implicit=false", "BCs/right/implicit=false"]
 IMEX_SCHEMES = {
     "Executioner/mfem_scheme=imex-euler": (1, 0.1),
-    "Executioner/mfem_scheme=imex-ars222": (2, 0.025),
-    "Executioner/mfem_scheme=imex-ars232": (2, 0.05),
-    "Executioner/mfem_scheme=imex-ars343": (3, 0.025),
 }
 
 

@@ -26,11 +26,11 @@ MFEM. The schemes available through `scheme` map onto MFEM's ODE solvers as foll
 
 The schemes available through `mfem_scheme` are the implicit midpoint rule, singly diagonally
 implicit Runge-Kutta (SDIRK and ESDIRK) schemes, the generalized-alpha scheme, whose damping of
-high frequencies is set by `rho_inf`, explicit Runge-Kutta schemes of orders three to eight, and
-implicit-explicit (IMEX) Runge-Kutta schemes. IMEX schemes treat kernels and integrated boundary
-conditions explicitly if their `implicit` parameter is `false`, and implicitly otherwise. The
-`implicit` parameter is ignored by all other schemes, which treat every term either implicitly or
-explicitly.
+high frequencies is set by `rho_inf`, explicit Runge-Kutta schemes of orders three and four, and
+the implicit-explicit (IMEX) forward-backward Euler scheme. The IMEX scheme treats kernels and
+integrated boundary conditions explicitly if their `implicit` parameter is `false`, and implicitly
+otherwise. The `implicit` parameter is ignored by all other schemes, which treat every term either
+implicitly or explicitly.
 
 Schemes with explicit stages, including the first stage of `crank-nicolson`, invert the mass
 operator, so require every equation to contain a time derivative of its trial variable. See
