@@ -25,6 +25,10 @@ The template parameter `T` must be one of `VariableName`, `std::vector<VariableN
 `PostprocessorName`, `std::vector<PostprocessorName>`, `VectorPostprocessorName`, or
 `std::vector<VectorPostprocessorName>`. The scheduler infers the resource category from the type.
 
+MFEM variables are also available as coefficients under their own names. Any scalar or vector
+coefficient parameter whose value names an MFEM variable is therefore treated as consuming that
+variable, without needing to be registered.
+
 The resource supplied by this object is declared by overriding one of:
 
 - `suppliedVariableName()` — name of the MFEM variable written by this object.

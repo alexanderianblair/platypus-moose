@@ -72,4 +72,15 @@
     recover = false
     restep = false
   []
+  [MFEMCoefficientDependency]
+    type = CSVDiff
+    input = coefficient_dependency.i
+    csvdiff = OutputData/CoefficientDependency.csv
+    design = 'MFEMExecutedObject.md'
+    issues = '#TBD'
+    requirement = 'The system shall execute an MFEM object reading a variable through a coefficient '
+                  'parameter after the object updating that variable on the same execute flag.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+  []
 []

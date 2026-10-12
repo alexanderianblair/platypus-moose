@@ -10,6 +10,7 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "MFEMExecutedObject.h"
+#include "MFEMProblem.h"
 
 InputParameters
 MFEMExecutedObject::validParams()
@@ -71,6 +72,32 @@ MFEMExecutedObject::getRequestedItems()
     if (const auto * names = queryParam<std::vector<VectorPostprocessorName>>(param))
       for (const auto & name : *names)
         _requested_items->insert(vectorPostprocessorDependencyKey(name));
+  }
+
+  // MFEM variables are also available as coefficients under their own names, so a coefficient
+  // parameter naming a variable reads that variable's current values.
+  const auto & problem_data = getMFEMProblem().getProblemData();
+  const auto supplied_variable = suppliedVariableName();
+  const auto request_if_variable = [&](const std::string & name)
+  {
+    if (name != supplied_variable &&
+        (problem_data.gridfunctions.Has(name) || problem_data.cmplx_gridfunctions.Has(name)))
+      _requested_items->insert(variableDependencyKey(name));
+  };
+  for (const auto & [param, _] : parameters())
+  {
+    if (parameters().isPrivate(param))
+      continue;
+    if (const auto * name = queryParam<MFEMScalarCoefficientName>(param))
+      request_if_variable(*name);
+    if (const auto * names = queryParam<std::vector<MFEMScalarCoefficientName>>(param))
+      for (const auto & name : *names)
+        request_if_variable(name);
+    if (const auto * name = queryParam<MFEMVectorCoefficientName>(param))
+      request_if_variable(*name);
+    if (const auto * names = queryParam<std::vector<MFEMVectorCoefficientName>>(param))
+      for (const auto & name : *names)
+        request_if_variable(name);
   }
 
   return *_requested_items;
