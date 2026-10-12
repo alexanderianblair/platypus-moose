@@ -45,4 +45,16 @@
     compute_devices = 'cpu cuda'
     recover = false
   []
+  [TimeDependentFunction]
+    type = CSVDiff
+    input = time_dependent_function.i
+    csvdiff = OutputData/TimeDependentFunction.csv
+    design = 'MFEMProblem.md'
+    issues = '#TBD'
+    requirement = 'The system shall evaluate time-dependent functions used as MFEM coefficients at '
+                  'the current simulation time in auxiliary kernels and postprocessors, including '
+                  'when no equation system is solved and when the simulation starts at a nonzero '
+                  'time.'
+    capabilities = 'mfem'
+  []
 []

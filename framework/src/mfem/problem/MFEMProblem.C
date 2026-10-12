@@ -100,6 +100,9 @@ void
 MFEMProblem::execute(const ExecFlagType & exec_type)
 {
   setCurrentExecuteOnFlag(exec_type);
+  // MFEM coefficients hold their own evaluation time, which time-dependent equation systems
+  // only advance while solving, so objects executed here would otherwise see a stale time.
+  getCoefficients().setTime(time());
   executeMFEMObjects(exec_type);
 
   ExternalProblem::execute(exec_type);

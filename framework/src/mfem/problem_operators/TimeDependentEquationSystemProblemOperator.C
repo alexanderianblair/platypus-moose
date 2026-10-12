@@ -57,10 +57,12 @@ TimeDependentEquationSystemProblemOperator::Solve()
   for (const auto & trial_var_name : _trial_var_names)
     gfs.GetRef(tdm.getTimeDerivativeName(trial_var_name)) = gfs.GetRef(trial_var_name);
 
-  // Advance time step of the MFEM problem. Time is also updated here, and
-  // _problem_operator->SetTime is called inside the ode_solver->Step method to
-  // update the time used by time dependent (function) coefficients.
-  _problem_data.ode_solver->Step(*_trial_true_vector, _problem.time(), dt);
+  // Advance time step of the MFEM problem from the start of the step. The ODE solver
+  // advances the time it is given and calls SetTime on this operator to update the time
+  // used by time dependent (function) coefficients; it is passed a copy because the
+  // executioner owns the problem time, which already holds the end of the step.
+  mfem::real_t t = _problem.timeOld();
+  _problem_data.ode_solver->Step(*_trial_true_vector, t, dt);
   // Synchonise time dependent GridFunctions with updated DoF data.
   SetTrialVariablesFromTrueVectors();
 
