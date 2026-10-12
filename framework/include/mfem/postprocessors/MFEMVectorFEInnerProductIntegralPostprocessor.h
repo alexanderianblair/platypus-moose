@@ -15,8 +15,9 @@
 #include "MFEMBlockRestrictable.h"
 
 /**
- * Compute the integral of the innter product between two MFEM vector FE variables, scaled by an
- * optional scalar coefficient.
+ * Compute the integral of the inner product between two MFEM vector variables, scaled by an
+ * optional scalar coefficient. The primal variable may be in an ND or RT space, or in a vector
+ * space built from scalar elements such as [L2]^d or [H1]^d.
  */
 class MFEMVectorFEInnerProductIntegralPostprocessor : public MFEMPostprocessor,
                                                       public MFEMBlockRestrictable

@@ -41,12 +41,27 @@ MFEMVectorFEInnerProductIntegralPostprocessor::MFEMVectorFEInnerProductIntegralP
                           getVectorCoefficientByName(getParam<VariableName>("dual_variable"))),
     _subdomain_integrator(_primal_var.ParFESpace())
 {
-  if (isSubdomainRestricted())
-    _subdomain_integrator.AddDomainIntegrator(
-        new mfem::VectorFEDomainLFIntegrator(_scaled_dual_var_coef), getSubdomainMarkers());
+  // ND and RT spaces have vector-valued shape functions, whereas vector spaces built from scalar
+  // elements, such as [L2]^d and [H1]^d, have one scalar shape function per component.
+  const auto & fespace = *_primal_var.ParFESpace();
+  mfem::LinearFormIntegrator * integrator;
+  if (fespace.FEColl()->GetRangeType(fespace.GetMesh()->Dimension()) ==
+      mfem::FiniteElement::VECTOR)
+    integrator = new mfem::VectorFEDomainLFIntegrator(_scaled_dual_var_coef);
+  else if (fespace.GetVDim() == _scaled_dual_var_coef.GetVDim())
+    integrator = new mfem::VectorDomainLFIntegrator(_scaled_dual_var_coef);
   else
-    _subdomain_integrator.AddDomainIntegrator(
-        new mfem::VectorFEDomainLFIntegrator(_scaled_dual_var_coef));
+    paramError("primal_variable",
+               "The primal variable has ",
+               fespace.GetVDim(),
+               " components but the dual variable has ",
+               _scaled_dual_var_coef.GetVDim(),
+               ".");
+
+  if (isSubdomainRestricted())
+    _subdomain_integrator.AddDomainIntegrator(integrator, getSubdomainMarkers());
+  else
+    _subdomain_integrator.AddDomainIntegrator(integrator);
 }
 
 void

@@ -10,8 +10,10 @@ user-specified subdomain of the mesh:
 !equation
 (k \vec u, \vec v)_\Omega
 
-where $\vec u$, $\vec v \in H(\mathrm{curl})$ or $H(\mathrm{div})$, $k$ is an optional scalar coefficient,
-and $\Omega$ is the user-specified mesh subdomain.
+where $\vec u$ is the primal variable and $\vec v$ the dual variable, $k$ is an optional scalar
+coefficient, and $\Omega$ is the user-specified mesh subdomain. The primal variable may be in
+$H(\mathrm{curl})$ or $H(\mathrm{div})$, or in a vector space built from scalar elements, such as
+$[L^2]^d$ or $[H^1]^d$; the dual variable may be any vector variable.
 
 ## Example Input File Syntax
 

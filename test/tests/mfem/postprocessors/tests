@@ -1,0 +1,25 @@
+[Tests]
+  design = 'MFEMVectorFEInnerProductIntegralPostprocessor.md'
+  issues = '#TBD'
+  [VectorInnerProduct]
+    requirement = 'The system shall integrate the inner product of two vector MFEM variables'
+    [vector_fe]
+      type = CSVDiff
+      input = vector_inner_product.i
+      csvdiff = OutputData/VectorInnerProduct.csv
+      detail = 'with the primal variable in an H(curl) or H(div) space, or in a vector space built '
+               'from scalar elements,'
+      capabilities = 'mfem'
+      compute_devices = 'cpu cuda'
+    []
+    [component_mismatch]
+      type = RunException
+      input = vector_inner_product.i
+      cli_args = 'Postprocessors/nd_primal/primal_variable=scalar'
+      expect_err = 'The primal variable has 1 components but the dual variable has 3.'
+      detail = 'and report an error when the primal and dual variables have different numbers of '
+               'components.'
+      capabilities = 'mfem'
+    []
+  []
+[]
