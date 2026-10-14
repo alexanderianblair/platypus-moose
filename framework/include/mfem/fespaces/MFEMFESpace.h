@@ -36,7 +36,7 @@ public:
   inline std::shared_ptr<mfem::ParFiniteElementSpace> getFESpace() const
   {
     if (!_fespace)
-      buildFESpace();
+      _fespace = buildFESpace();
     return _fespace;
   }
 
@@ -44,7 +44,7 @@ public:
   inline std::shared_ptr<mfem::FiniteElementCollection> getFEC() const
   {
     if (!_fec)
-      buildFEC();
+      _fec = buildFEC();
     return _fec;
   }
 
@@ -67,14 +67,18 @@ protected:
   /// FESpace is defined on an MFEMSubMesh.
   mfem::ParMesh & _pmesh;
 
+  /// Constructs the fec from the fec name. Overridden by finite element spaces whose
+  /// collections cannot be constructed from a name.
+  virtual std::shared_ptr<mfem::FiniteElementCollection> buildFEC() const;
+
+  /// Constructs the fespace. Overridden by finite element spaces needing to pass
+  /// additional data, such as a NURBSExtension, to the mfem::ParFiniteElementSpace.
+  virtual std::shared_ptr<mfem::ParFiniteElementSpace> buildFESpace() const;
+
 private:
-  /// Constructs the fec from the fec name.
-  void buildFEC() const;
   /// Stores the constructed fecollection
   mutable std::shared_ptr<mfem::FiniteElementCollection> _fec{nullptr};
 
-  /// Constructs the fespace.
-  void buildFESpace() const;
   /// Stores the constructed fespace.
   mutable std::shared_ptr<mfem::ParFiniteElementSpace> _fespace{nullptr};
 };

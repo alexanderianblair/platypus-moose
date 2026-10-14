@@ -10,6 +10,7 @@
 #ifdef MOOSE_MFEM_ENABLED
 
 #include "MFEMScalarDirichletBC.h"
+#include "USplineSpace.h"
 
 registerMooseObject("MooseApp", MFEMScalarDirichletBC);
 
@@ -31,7 +32,11 @@ MFEMScalarDirichletBC::MFEMScalarDirichletBC(const InputParameters & parameters)
 void
 MFEMScalarDirichletBC::ApplyBC(mfem::GridFunction & gridfunc)
 {
-  gridfunc.ProjectBdrCoefficient(_coef, getBoundaryMarkers());
+  if (Moose::MFEM::isUSplineSpace(*gridfunc.FESpace()))
+    Moose::MFEM::projectUSplineBdrCoefficient(
+        dynamic_cast<mfem::ParGridFunction &>(gridfunc), &_coef, nullptr, getBoundaryMarkers());
+  else
+    gridfunc.ProjectBdrCoefficient(_coef, getBoundaryMarkers());
 }
 
 #endif

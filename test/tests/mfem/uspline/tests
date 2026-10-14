@@ -1,0 +1,73 @@
+[Tests]
+  design = 'MFEMUSplineMesh.md MFEMUSplineFESpace.md'
+  issues = '#33631'
+  [MFEMUSplinePatchTest]
+    type = CSVDiff
+    input = uspline_diffusion.i
+    csvdiff = OutputData/USplinePatchTest.csv
+    requirement = 'The system shall reproduce a linear solution of the Laplace equation exactly '
+                  'with U-spline basis functions on a two-dimensional U-spline mesh read from a '
+                  'BEXT file.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMUSplineRational2D]
+    type = CSVDiff
+    input = uspline_diffusion.i
+    cli_args = 'Mesh/file=../mesh/PlateWithHole_Patch8.bxt '
+               'Outputs/file_base=OutputData/USplineRational2D'
+    csvdiff = OutputData/USplineRational2D.csv
+    requirement = 'The system shall solve the Laplace equation with rational U-spline basis '
+                  'functions on a two-dimensional U-spline mesh whose curved boundary is represented '
+                  'exactly.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMUSplineRational3D]
+    type = CSVDiff
+    input = uspline_diffusion.i
+    cli_args = 'Mesh/file=../mesh/BlockWithHole_Patch9.bxt '
+               'Outputs/file_base=OutputData/USplineRational3D'
+    csvdiff = OutputData/USplineRational3D.csv
+    requirement = 'The system shall solve the Laplace equation with rational U-spline basis '
+                  'functions on a three-dimensional U-spline mesh read from a BEXT file.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMUSplineHarmonic]
+    type = CSVDiff
+    input = uspline_diffusion.i
+    cli_args = 'Mesh/file=../mesh/PressurizedCyl_Patch6_256Elem.bxt '
+               'Functions/exact_solution/expression="0.5*log(x*x+y*y)" '
+               'Outputs/file_base=OutputData/USplineHarmonic'
+    csvdiff = OutputData/USplineHarmonic.csv
+    requirement = 'The system shall solve the Laplace equation with rational U-spline basis '
+                  'functions and nonuniform Dirichlet boundary values, projected onto the spline '
+                  'functions with nonzero traces on the boundary.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMUSplineElasticity]
+    type = CSVDiff
+    input = uspline_elasticity.i
+    csvdiff = OutputData/USplineElasticity.csv
+    requirement = 'The system shall solve a linear elasticity problem discretized with '
+                  'vector-valued rational U-spline basis functions.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
+  [MFEMUSplineFESpaceOnNonUSplineMeshError]
+    type = RunException
+    input = uspline_diffusion.i
+    cli_args = 'Mesh/type=MFEMFileMesh Mesh/file=../mesh/star.mesh'
+    expect_err = 'A U-spline finite element space can only be built on an MFEMUSplineMesh'
+    requirement = 'The system shall report an error if a U-spline finite element space is '
+                  'requested on a mesh that was not read from a U-spline BEXT file.'
+    capabilities = 'mfem'
+  []
+[]
