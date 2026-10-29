@@ -12,6 +12,7 @@
 #include "MFEMNLCurlCurlKernel.h"
 #include "MFEMProblem.h"
 #include "NLCurlCurlIntegrator.h"
+#include "MixedScalarVectorCurlIntegrator.h"
 
 registerMooseObject("MooseApp", MFEMNLCurlCurlKernel);
 
@@ -40,6 +41,17 @@ MFEMNLCurlCurlKernel::validParams()
       "curlu_zero_tol",
       1e-32,
       "Tolerance used for normalizing the curl vector when forming the Jacobian.");
+  params.addParam<std::vector<VariableName>>(
+      "coupled_variables",
+      {},
+      "Scalar variables $c_i$, other than the trial variable, that $k$ depends on. Their "
+      "contributions to the Jacobian are formed if they are solved for in the same equation "
+      "system.");
+  params.addParam<std::vector<MFEMScalarCoefficientName>>(
+      "dk_dcoupled_coefficients",
+      {},
+      "Names of the coefficients representing $\\partial k/\\partial c_i$ for each of the "
+      "'coupled_variables'.");
   return params;
 }
 
@@ -48,8 +60,24 @@ MFEMNLCurlCurlKernel::MFEMNLCurlCurlKernel(const InputParameters & parameters)
     _k_coef(getScalarCoefficient("k_coefficient")),
     _curlu_dk_dcurlu_coef(getScalarCoefficient("curlu_dk_dcurlu_coefficient")),
     _curlu_vec_coef(getVectorCoefficientByName(getTrialVariableName() + "_curl")),
-    _curlu_zero_tol(getParam<mfem::real_t>("curlu_zero_tol"))
+    _curlu_zero_tol(getParam<mfem::real_t>("curlu_zero_tol")),
+    _coupled_var_names(getParam<std::vector<VariableName>>("coupled_variables"))
 {
+  const auto & dk_dcoupled_names =
+      getParam<std::vector<MFEMScalarCoefficientName>>("dk_dcoupled_coefficients");
+  if (dk_dcoupled_names.size() != _coupled_var_names.size())
+    paramError("dk_dcoupled_coefficients",
+               "Must provide one coefficient for each of the 'coupled_variables'.");
+  for (const auto i : index_range(_coupled_var_names))
+  {
+    if (getMFEMProblem().getGridFunction(_coupled_var_names[i])->VectorDim() != 1)
+      paramError("coupled_variables",
+                 "Coupled variable '",
+                 _coupled_var_names[i],
+                 "' must be scalar-valued.");
+    _dk_dcoupled_curlu_coefs.push_back(std::make_unique<mfem::ScalarVectorProductCoefficient>(
+        getScalarCoefficientByName(dk_dcoupled_names[i]), _curlu_vec_coef));
+  }
 }
 
 mfem::NonlinearFormIntegrator *
@@ -57,6 +85,17 @@ MFEMNLCurlCurlKernel::createNLIntegrator()
 {
   return new Moose::MFEM::NLCurlCurlIntegrator(
       _k_coef, _curlu_dk_dcurlu_coef, _curlu_vec_coef, _curlu_zero_tol);
+}
+
+mfem::BilinearFormIntegrator *
+MFEMNLCurlCurlKernel::createNLCoupledJacobianIntegrator(const std::string & coupled_var_name)
+{
+  // ((dk/dc) curl u dc, curl v)
+  for (const auto i : index_range(_coupled_var_names))
+    if (_coupled_var_names[i] == coupled_var_name)
+      return new Moose::MFEM::MixedScalarVectorCurlIntegrator(*_dk_dcoupled_curlu_coefs[i],
+                                                              /*transpose=*/false);
+  return nullptr;
 }
 
 #endif

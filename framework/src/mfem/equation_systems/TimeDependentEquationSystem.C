@@ -181,6 +181,7 @@ TimeDependentEquationSystem::BuildNonlinearForms()
     ApplyDomainNLFIntegrators(test_var_name, nlf, _kernels_map, _dt);
     ApplyBoundaryNLFIntegrators(test_var_name, nlf, _integrated_bc_map, _dt);
   }
+  BuildNonlinearCoupledJacobianForms(_dt);
 }
 
 void

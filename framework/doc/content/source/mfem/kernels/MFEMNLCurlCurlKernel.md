@@ -18,9 +18,24 @@ This term arises from the weak form of the curl curl operator
 !equation
 \vec\nabla \times \left(k(|\vec\nabla \times \vec u|) \vec\nabla \times \vec u\right)
 
+The coefficient $k$ may also depend on scalar variables $c_i$, such as temperature, listed in
+[!param](/Kernels/MFEMNLCurlCurlKernel/coupled_variables). If a $c_i$ is solved for in the same
+equation system as $\vec u$, the Jacobian includes the off-diagonal contribution
+
+!equation
+\left(\frac{\partial k}{\partial c_i} \delta c_i \vec\nabla \times \vec u,
+\vec\nabla \times \vec v\right)_\Omega
+
+formed from [!param](/Kernels/MFEMNLCurlCurlKernel/dk_dcoupled_coefficients).
+
 ## Example Input File Syntax
 
 !listing mfem/submeshes/nl_hphi_magnetodynamic.i block=/Kernels
+
+The magnetic field and temperature of a conductor with temperature-dependent resistivity can be
+solved for in one equation system:
+
+!listing mfem/nonlinear/nl_electrothermal.i block=/Kernels
 
 !syntax parameters /Kernels/MFEMNLCurlCurlKernel
 

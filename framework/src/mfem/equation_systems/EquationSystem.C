@@ -415,6 +415,9 @@ EquationSystem::FormJacobianMatrix(const mfem::Vector & u)
   _jacobian_blocks = nullptr;
 
   const mfem::BlockVector update_vector(const_cast<mfem::Vector &>(u), _block_true_offsets);
+  // Coefficients of the nonlinear Jacobian contributions are evaluated from the trial variable
+  // gridfunctions, which must therefore hold the linearization point.
+  SetTrialVariablesFromTrueVectors(update_vector);
   for (const auto i : index_range(_test_var_names))
   {
     auto test_var_name = _test_var_names.at(i);
@@ -431,8 +434,26 @@ EquationSystem::FormJacobianMatrix(const mfem::Vector & u)
     else
       _jacobian_blocks(i, i) = _h_blocks(i, i);
     for (const auto j : index_range(_trial_var_names))
-      if (i != j) // nlf->GetGradient only contributes to on-diagonal blocks
+    {
+      if (i == j) // nlf->GetGradient only contributes to on-diagonal blocks
+        continue;
+      const auto & trial_var_name = _trial_var_names.at(j);
+      if (!_nl_jac_mblfs.Has(test_var_name) ||
+          !_nl_jac_mblfs.Get(test_var_name)->Has(trial_var_name))
+      {
         _jacobian_blocks(i, j) = _h_blocks(i, j);
+        continue;
+      }
+      auto & nl_jac_mblf = _nl_jac_mblfs.GetRef(test_var_name).GetRef(trial_var_name);
+      nl_jac_mblf.Assemble();
+      mfem::OperatorHandle nl_jac_handle;
+      nl_jac_mblf.FormRectangularSystemMatrix(
+          _ess_tdof_lists.at(j), _ess_tdof_lists.at(i), nl_jac_handle);
+      // The assembled matrix is owned by the form, so the Jacobian block must be a new matrix.
+      const auto * nl_jac = nl_jac_handle.As<mfem::HypreParMatrix>();
+      _jacobian_blocks(i, j) = _h_blocks(i, j) ? mfem::ParAdd(_h_blocks(i, j), nl_jac)
+                                               : new mfem::HypreParMatrix(*nl_jac);
+    }
   }
   // Create monolithic matrix
   _jacobian.Reset(mfem::HypreParMatrixFromBlocks(_jacobian_blocks));
@@ -510,6 +531,39 @@ EquationSystem::BuildNonlinearForms()
     nlf->SetEssentialTrueDofs(_ess_tdof_lists.at(i));
     ApplyDomainNLFIntegrators(test_var_name, nlf, _kernels_map, std::nullopt);
     ApplyBoundaryNLFIntegrators(test_var_name, nlf, _integrated_bc_map, std::nullopt);
+  }
+  BuildNonlinearCoupledJacobianForms(std::nullopt);
+}
+
+void
+EquationSystem::BuildNonlinearCoupledJacobianForms(std::optional<mfem::real_t> scale_factor)
+{
+  for (const auto i : index_range(_test_var_names))
+  {
+    const auto & test_var_name = _test_var_names.at(i);
+    auto test_nl_jac_mblfs =
+        std::make_shared<Moose::MFEM::NamedFieldsMap<mfem::ParMixedBilinearForm>>();
+    if (_kernels_map.Has(test_var_name))
+      for (const auto & trial_var_name : _trial_var_names)
+      {
+        if (trial_var_name == test_var_name)
+          continue;
+        auto mblf = std::make_shared<mfem::ParMixedBilinearForm>(
+            _gfuncs->Get(trial_var_name)->ParFESpace(), _test_pfespaces.at(i));
+        for (const auto & [_, kernels] : _kernels_map.GetRef(test_var_name))
+          for (auto & kernel : *kernels)
+            if (auto * integ = kernel->createNLCoupledJacobianIntegrator(trial_var_name))
+            {
+              if (scale_factor.has_value())
+                integ = new ScaleIntegrator(integ, scale_factor.value(), true);
+              kernel->isSubdomainRestricted()
+                  ? mblf->AddDomainIntegrator(integ, kernel->getSubdomainMarkers())
+                  : mblf->AddDomainIntegrator(integ);
+            }
+        if (mblf->GetDBFI()->Size())
+          test_nl_jac_mblfs->Register(trial_var_name, mblf);
+      }
+    _nl_jac_mblfs.Register(test_var_name, test_nl_jac_mblfs);
   }
 }
 

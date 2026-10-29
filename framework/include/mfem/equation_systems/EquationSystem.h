@@ -193,6 +193,9 @@ protected:
   virtual void BuildLinearForms();
   /// Build non-linear action forms
   virtual void BuildNonlinearForms();
+  /// Build mixed bilinear forms holding the off-diagonal Jacobian contributions of nonlinear
+  /// kernels, scaling their integrators by scale_factor if provided
+  void BuildNonlinearCoupledJacobianForms(std::optional<mfem::real_t> scale_factor);
   /// Build bilinear forms (diagonal Jacobian contributions)
   virtual void BuildBilinearForms();
   /// Build mixed bilinear forms (off-diagonal Jacobian contributions)
@@ -305,6 +308,9 @@ protected:
   NamedFieldsMap<mfem::ParLinearForm> _lfs;
   NamedFieldsMap<mfem::ParNonlinearForm> _nlfs;
   NamedFieldsMap<NamedFieldsMap<mfem::ParMixedBilinearForm>> _mblfs; // named according to trial var
+  /// Off-diagonal Jacobian contributions of nonlinear kernels, reassembled at each linearization
+  /// point. Named according to test and trial variables.
+  NamedFieldsMap<NamedFieldsMap<mfem::ParMixedBilinearForm>> _nl_jac_mblfs;
 
   /// Gridfunctions holding essential constraints from Dirichlet BCs
   std::vector<std::unique_ptr<mfem::ParGridFunction>> _var_ess_constraints;

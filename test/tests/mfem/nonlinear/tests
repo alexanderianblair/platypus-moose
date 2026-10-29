@@ -131,6 +131,32 @@
     compute_devices = 'cpu'
     restep = false
   []
+  [MFEMNonLinearElectroThermal]
+    design = 'MFEMNLJouleHeatingKernel.md MFEMNLCurlCurlKernel.md EquationSystem.md'
+    requirement = 'The system shall solve for the magnetic field and temperature of a conductor whose resistivity depends on current density and temperature, heated by Joule losses, in one MFEM equation system'
+    [solve]
+      type = CSVDiff
+      input = nl_electrothermal.i
+      csvdiff = 'nl_electrothermal_out.csv'
+      detail = 'to reproduce a reference solution, and'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+      restep = false
+    []
+    [jacobian]
+      type = PetscJacobianTester
+      input = nl_electrothermal.i
+      cli_args = 'Solvers/active=petsc_nl'
+      run_sim = true
+      # The finite-difference error reaches 2.4e-7 over the Newton iterations of this problem,
+      # whereas omitting any one coupling term between magnetic field and temperature raises the
+      # ratio above 7e-4.
+      ratio_tol = 1e-6
+      detail = 'with a Jacobian, including the couplings between magnetic field and temperature, that matches a finite-difference approximation.'
+      capabilities = 'mfem'
+      compute_devices = 'cpu'
+    []
+  []
   [MFEMNonLinearHeatConductionQuadratureFunction]
     design = 'MFEMScalarQuadratureFunction.md'
     requirement = 'The system shall re-project quadrature function coefficients on each nonlinear iteration such that solution-dependent coefficients stored on quadrature points reproduce the reference nonlinear solve.'

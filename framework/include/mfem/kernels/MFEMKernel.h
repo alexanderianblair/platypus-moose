@@ -33,6 +33,15 @@ public:
   /// Create MFEM integrator to apply to the LHS of the weak form. Ownership managed by the caller.
   virtual mfem::BilinearFormIntegrator * createBFIntegrator() { return nullptr; }
   virtual mfem::NonlinearFormIntegrator * createNLIntegrator() { return nullptr; }
+  /// Create MFEM integrator for the derivative of the residual of createNLIntegrator() with respect
+  /// to another trial variable of the equation system, evaluated at the current state of all
+  /// variables. Returns nullptr if the residual does not depend on coupled_var_name. Ownership
+  /// managed by the caller.
+  virtual mfem::BilinearFormIntegrator *
+  createNLCoupledJacobianIntegrator(const std::string & /*coupled_var_name*/)
+  {
+    return nullptr;
+  }
 
   /// Get name of the test variable labelling the weak form this kernel is added to
   const VariableName & getTestVariableName() const { return _test_var_name; }
