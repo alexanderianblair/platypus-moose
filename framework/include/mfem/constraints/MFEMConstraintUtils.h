@@ -22,7 +22,8 @@ namespace Moose::MFEM
  * in the attribute marker array @p subdomain_markers, as returned by
  * MFEMBlockRestrictable::getSubdomainMarkers. If @p include_boundary is false, the
  * dofs on the boundary of the subdomains - those shared with any other element and
- * those on the exterior boundary of the mesh - are left out.
+ * those on the exterior boundary of the mesh - are left out, except for those on the
+ * exterior boundary if @p include_exterior_boundary is true.
  *
  * @p dof_marker is set to a local-dof (L-dof) marker of the selected dofs and
  * @p tdofs to the matching true-dof indices; both are overwritten. Both are
@@ -33,6 +34,7 @@ namespace Moose::MFEM
 void subdomainDofs(mfem::ParFiniteElementSpace & pfes,
                    const mfem::Array<int> & subdomain_markers,
                    bool include_boundary,
+                   bool include_exterior_boundary,
                    mfem::Array<int> & dof_marker,
                    mfem::Array<int> & tdofs);
 

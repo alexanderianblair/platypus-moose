@@ -30,6 +30,7 @@ class ParFiniteElementSpaceHierarchy;
 class MFEMKernel;
 class MFEMBoundaryCondition;
 class MFEMConstraint;
+class MFEMInterfaceKernel;
 
 namespace Moose::MFEM
 {
@@ -250,6 +251,7 @@ using FESpaceHierarchies = NamedFieldsMap<mfem::ParFiniteElementSpaceHierarchy>;
 using Kernels = NamedFieldsMap<MFEMKernel>;
 using BoundaryConditions = NamedFieldsMap<MFEMBoundaryCondition>;
 using Constraints = NamedFieldsMap<MFEMConstraint>;
+using InterfaceKernels = NamedFieldsMap<MFEMInterfaceKernel>;
 using EquationSystems = NamedFieldsMap<EquationSystem>;
 
 } // namespace Moose::MFEM

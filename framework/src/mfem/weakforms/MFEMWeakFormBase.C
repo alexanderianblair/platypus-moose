@@ -46,6 +46,14 @@ MFEMWeakFormBase::createEquationSystem()
 }
 
 void
+MFEMWeakFormBase::addInterfaceKernel(const std::string & name,
+                                     std::shared_ptr<MFEMInterfaceKernel> /*kernel*/)
+{
+  mooseError(
+      "The interface kernel '", name, "' is not supported by the weak form '", this->name(), "'.");
+}
+
+void
 MFEMWeakFormBase::initEquationSystem()
 {
   auto & problem_data = getMFEMProblem().getProblemData();
@@ -85,6 +93,11 @@ MFEMWeakFormBase::initEquationSystem()
                    "' has been added to the problem.");
       addConstraint(constraint_name, problem_data.constraints.GetShared(constraint_name));
     }
+
+  // Interface kernels are all added, as they couple variables whose kernels are
+  // already in the weak form.
+  for (const auto & [kernel_name, kernel] : problem_data.interface_kernels)
+    addInterfaceKernel(kernel_name, kernel);
 
   if (problem_data.nonlinear_solver)
     _equation_system->SetGradientRequired(problem_data.nonlinear_solver->RequiresGradient());

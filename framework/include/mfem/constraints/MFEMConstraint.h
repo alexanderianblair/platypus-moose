@@ -47,7 +47,8 @@ public:
 
 protected:
   /// True dofs of @p pfes the constraint fixes: those of the constrained subdomains,
-  /// less the subdomain boundary unless 'constrain_subdomain_boundary' is set (see
+  /// less the subdomain boundary unless 'constrain_subdomain_boundary' is set, or
+  /// only their interfaces with other subdomains with 'constrain_exterior_boundary' (see
   /// Moose::MFEM::subdomainDofs). They depend only on the mesh and the space, so
   /// they are cached and only recomputed when the space is updated.
   const mfem::Array<int> & getSubdomainTrueDofs(mfem::ParFiniteElementSpace & pfes);
@@ -64,6 +65,9 @@ private:
 
   /// Whether the dofs on the boundary of the constrained subdomains are constrained.
   const bool _constrain_subdomain_boundary;
+  /// Whether the dofs on the exterior boundary of the mesh are constrained when the rest
+  /// of the subdomain boundary is not.
+  const bool _constrain_exterior_boundary;
   /// Constrained true dofs of the most recent updateSubdomainDofs() call.
   mfem::Array<int> _subdomain_tdofs;
   /// L-dof marker matching _subdomain_tdofs.

@@ -46,6 +46,13 @@ MFEMWeakForm::addKernel(const std::string & /*name*/, std::shared_ptr<MFEMKernel
 }
 
 void
+MFEMWeakForm::addInterfaceKernel(const std::string & /*name*/,
+                                 std::shared_ptr<MFEMInterfaceKernel> kernel)
+{
+  _equation_system->AddInterfaceKernel(std::move(kernel));
+}
+
+void
 MFEMWeakForm::addConstraint(const std::string & name, std::shared_ptr<MFEMConstraint> constraint)
 {
   if (auto essential_constraint = std::dynamic_pointer_cast<MFEMEssentialConstraint>(constraint))

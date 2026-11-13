@@ -19,6 +19,7 @@
 #include "MFEMEssentialConstraint.h"
 #include "MFEMContainers.h"
 #include "MFEMKernel.h"
+#include "MFEMInterfaceKernel.h"
 #include "MFEMMixedBilinearFormKernel.h"
 #include "ScaleIntegrator.h"
 #include "NLScaleIntegrator.h"
@@ -56,6 +57,8 @@ public:
   virtual void AddEssentialBC(std::shared_ptr<MFEMEssentialBC> bc);
   /// Add constraint associated with essentially constrained DoFs on domains.
   virtual void AddEssentialConstraint(std::shared_ptr<MFEMEssentialConstraint> constraint);
+  /// Add an interface kernel coupling the variables either side of an interior boundary.
+  virtual void AddInterfaceKernel(std::shared_ptr<MFEMInterfaceKernel> kernel);
 
   /// Initialise
   virtual void Init(GridFunctions & gridfunctions,
@@ -304,6 +307,24 @@ protected:
           integrated_bc_map,
       std::optional<mfem::real_t> scale_factor = std::nullopt);
 
+  /// Whether any interface kernel contributes to the block of @p test_var_name and
+  /// @p trial_var_name.
+  bool HasInterfaceIntegrators(const std::string & trial_var_name,
+                               const std::string & test_var_name) const;
+
+  /**
+   * Template method for applying the BilinearFormIntegrators of interface kernels to the
+   * boundary elements of their interfaces, in a BilinearForm or MixedBilinearForm.
+   */
+  template <class FormType>
+  void ApplyInterfaceBLFIntegrators(const std::string & trial_var_name,
+                                    const std::string & test_var_name,
+                                    std::shared_ptr<FormType> form,
+                                    std::optional<mfem::real_t> scale_factor = std::nullopt);
+
+  /// Interface kernels added to this EquationSystem.
+  std::vector<std::shared_ptr<MFEMInterfaceKernel>> _interface_kernels;
+
   /// Names of all trial variables of kernels and boundary conditions
   /// added to this EquationSystem.
   std::vector<std::string> _coupled_var_names;
@@ -449,6 +470,27 @@ EquationSystem::ApplyBoundaryBLFIntegrators(
       }
     }
   }
+}
+
+template <class FormType>
+void
+EquationSystem::ApplyInterfaceBLFIntegrators(const std::string & trial_var_name,
+                                             const std::string & test_var_name,
+                                             std::shared_ptr<FormType> form,
+                                             std::optional<mfem::real_t> scale_factor)
+{
+  using Side = MFEMInterfaceKernel::Side;
+  for (auto & kernel : _interface_kernels)
+    for (const auto test : {Side::Primary, Side::Neighbor})
+      for (const auto trial : {Side::Primary, Side::Neighbor})
+        if (kernel->getVariableName(test) == test_var_name &&
+            kernel->getVariableName(trial) == trial_var_name)
+          if (mfem::BilinearFormIntegrator * integ = kernel->createBFIntegrator(test, trial))
+          {
+            if (scale_factor.has_value())
+              integ = new ScaleIntegrator(integ, scale_factor.value(), true);
+            form->AddBoundaryIntegrator(integ, kernel->getBoundaryMarkers());
+          }
 }
 
 } // namespace Moose::MFEM

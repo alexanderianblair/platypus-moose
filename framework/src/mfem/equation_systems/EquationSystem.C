@@ -169,6 +169,33 @@ EquationSystem::AddEssentialConstraint(std::shared_ptr<MFEMEssentialConstraint> 
 }
 
 void
+EquationSystem::AddInterfaceKernel(std::shared_ptr<MFEMInterfaceKernel> kernel)
+{
+  // Each side's variable is both tested and coupled, through the blocks pairing it with
+  // itself and with the variable on the other side.
+  for (const auto side : {MFEMInterfaceKernel::Side::Primary, MFEMInterfaceKernel::Side::Neighbor})
+  {
+    AddCoupledVariableNameIfMissing(kernel->getVariableName(side));
+    AddTestVariableNameIfMissing(kernel->getVariableName(side));
+  }
+  _interface_kernels.push_back(std::move(kernel));
+}
+
+bool
+EquationSystem::HasInterfaceIntegrators(const std::string & trial_var_name,
+                                        const std::string & test_var_name) const
+{
+  using Side = MFEMInterfaceKernel::Side;
+  for (const auto & kernel : _interface_kernels)
+    for (const auto test : {Side::Primary, Side::Neighbor})
+      for (const auto trial : {Side::Primary, Side::Neighbor})
+        if (kernel->getVariableName(test) == test_var_name &&
+            kernel->getVariableName(trial) == trial_var_name)
+          return true;
+  return false;
+}
+
+void
 EquationSystem::Init(Moose::MFEM::GridFunctions & gridfunctions,
                      Moose::MFEM::ComplexGridFunctions & /*cmplx_gridfunctions*/,
                      mfem::AssemblyLevel assembly_level)
@@ -562,6 +589,7 @@ EquationSystem::BuildBilinearForms()
         test_var_name, test_var_name, blf, _integrated_bc_map);
     ApplyDomainBLFIntegrators<mfem::ParBilinearForm>(
         test_var_name, test_var_name, blf, _kernels_map);
+    ApplyInterfaceBLFIntegrators<mfem::ParBilinearForm>(test_var_name, test_var_name, blf);
     // Assemble
     blf->Assemble();
     blf->Finalize();
@@ -586,15 +614,19 @@ EquationSystem::BuildMixedBilinearForms()
       const auto & coupled_var_name = _coupled_var_names.at(j);
       auto mblf = std::make_shared<mfem::ParMixedBilinearForm>(_coupled_pfespaces.at(j),
                                                                _test_pfespaces.at(i));
-      // Register MixedBilinearForm if kernels exist for it, and assemble kernels
-      if (_kernels_map.Has(test_var_name) &&
-          _kernels_map.Get(test_var_name)->Has(coupled_var_name) &&
+      // Register MixedBilinearForm if kernels or interface kernels exist for it, and
+      // assemble them
+      const bool has_kernels =
+          _kernels_map.Has(test_var_name) && _kernels_map.Get(test_var_name)->Has(coupled_var_name);
+      if ((has_kernels || HasInterfaceIntegrators(coupled_var_name, test_var_name)) &&
           test_var_name != coupled_var_name)
       {
         mblf->SetAssemblyLevel(_assembly_level);
         // Apply all mixed kernels with this test/trial pair
         ApplyDomainBLFIntegrators<mfem::ParMixedBilinearForm>(
             coupled_var_name, test_var_name, mblf, _kernels_map);
+        ApplyInterfaceBLFIntegrators<mfem::ParMixedBilinearForm>(
+            coupled_var_name, test_var_name, mblf);
         // Assemble mixed bilinear forms
         mblf->Assemble();
         mblf->Finalize();

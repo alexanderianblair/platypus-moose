@@ -30,6 +30,14 @@ MFEMConstraint::validParams()
       "Whether to constrain the degrees of freedom on the boundary of the subdomains given by "
       "'block', both on interfaces with other subdomains and on the exterior boundary of the "
       "mesh. If false, only the degrees of freedom interior to the subdomains are constrained.");
+  params.addParam<bool>(
+      "constrain_exterior_boundary",
+      false,
+      "With 'constrain_subdomain_boundary' false, whether to constrain the degrees of freedom "
+      "of the subdomains on the exterior boundary of the mesh, leaving free only those shared "
+      "with other subdomains. This fixes a variable everywhere outside the subdomains it is "
+      "governed on except on their interfaces with them, as for the variables either side of an "
+      "interface kernel.");
   return params;
 }
 
@@ -38,8 +46,13 @@ MFEMConstraint::MFEMConstraint(const InputParameters & parameters)
     MFEMBlockRestrictable(parameters,
                           getMFEMProblem().getMFEMVariableMesh(getParam<VariableName>("variable"))),
     _trial_var_name(getParam<VariableName>("variable")),
-    _constrain_subdomain_boundary(getParam<bool>("constrain_subdomain_boundary"))
+    _constrain_subdomain_boundary(getParam<bool>("constrain_subdomain_boundary")),
+    _constrain_exterior_boundary(getParam<bool>("constrain_exterior_boundary"))
 {
+  if (_constrain_subdomain_boundary && isParamSetByUser("constrain_exterior_boundary"))
+    paramError("constrain_exterior_boundary",
+               "only applies with 'constrain_subdomain_boundary' false, as the exterior boundary "
+               "is otherwise constrained along with the rest of the subdomain boundary.");
 }
 
 void
@@ -86,6 +99,7 @@ MFEMConstraint::updateSubdomainDofs(mfem::ParFiniteElementSpace & pfes)
     Moose::MFEM::subdomainDofs(pfes,
                                getSubdomainMarkers(),
                                _constrain_subdomain_boundary,
+                               _constrain_exterior_boundary,
                                _subdomain_dof_marker,
                                _subdomain_tdofs);
     _subdomain_tdofs_sequence = pfes.GetSequence();

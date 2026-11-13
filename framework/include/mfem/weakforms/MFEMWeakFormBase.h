@@ -17,6 +17,7 @@
 class MFEMBoundaryCondition;
 class MFEMConstraint;
 class MFEMKernel;
+class MFEMInterfaceKernel;
 
 /**
  * Base class for MOOSE objects that construct objects derived from Moose::MFEM::EquationSystem.
@@ -44,6 +45,10 @@ protected:
 
   virtual void addConstraint(const std::string & name,
                              std::shared_ptr<MFEMConstraint> constraint) = 0;
+
+  /// Adds an interface kernel; weak forms that do not support them report an error.
+  virtual void addInterfaceKernel(const std::string & name,
+                                  std::shared_ptr<MFEMInterfaceKernel> kernel);
 
   /// Initialise the equation system. TODO: move all setup into EquationSystem constructors
   void initEquationSystem();

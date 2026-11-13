@@ -548,6 +548,7 @@ addActionTypes(Syntax & syntax)
   addTaskDependency("add_mfem_weak_forms", "add_kernel");
   addTaskDependency("add_mfem_weak_forms", "add_bc");
   addTaskDependency("add_mfem_weak_forms", "add_constraint");
+  addTaskDependency("add_mfem_weak_forms", "add_interface_kernel");
   addTaskDependency("add_mfem_weak_forms", "add_mfem_complex_kernel_components");
   addTaskDependency("add_mfem_weak_forms", "add_mfem_complex_bc_components");
   addTaskDependency("add_mfem_weak_forms", "add_mfem_fespace_hierarchies");

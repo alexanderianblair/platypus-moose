@@ -33,6 +33,9 @@ protected:
 
   virtual void addConstraint(const std::string & name,
                              std::shared_ptr<MFEMConstraint> constraint) override;
+
+  virtual void addInterfaceKernel(const std::string & name,
+                                  std::shared_ptr<MFEMInterfaceKernel> kernel) override;
 };
 
 #endif

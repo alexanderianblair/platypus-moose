@@ -243,6 +243,13 @@ public:
                    const std::string & name,
                    InputParameters & parameters) override;
   /**
+   * Override of FEProblemBase::addInterfaceKernel. Creates the MOOSE-side MFEM interface kernel.
+   */
+  void addInterfaceKernel(const std::string & kernel_name,
+                          const std::string & name,
+                          InputParameters & parameters) override;
+
+  /**
    * Override of FEProblemBase::addConstraint. Creates the MOOSE-side MFEM constraint.
    */
   void addConstraint(const std::string & constraint_name,

@@ -25,6 +25,13 @@ public:
 
   virtual void SetTimeStep(mfem::real_t & dt) { _dt = dt; };
   virtual void AddKernel(std::shared_ptr<MFEMKernel> kernel) override;
+  /// Interface kernels are not yet supported in time-dependent problems.
+  virtual void AddInterfaceKernel(std::shared_ptr<MFEMInterfaceKernel> kernel) override
+  {
+    mooseError("The interface kernel '",
+               kernel->name(),
+               "' is not supported in time-dependent problems yet.");
+  }
 
   virtual bool IsTimeDependent() const override { return true; }
 

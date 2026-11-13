@@ -43,6 +43,7 @@ public:
   Moose::MFEM::Kernels kernels;
   Moose::MFEM::BoundaryConditions bcs;
   Moose::MFEM::Constraints constraints;
+  Moose::MFEM::InterfaceKernels interface_kernels;
   Moose::MFEM::EquationSystems eqn_systems;
 
   std::string mode_separator{"_"};

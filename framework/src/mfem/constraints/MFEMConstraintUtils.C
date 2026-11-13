@@ -115,6 +115,7 @@ void
 subdomainDofs(mfem::ParFiniteElementSpace & pfes,
               const mfem::Array<int> & subdomain_markers,
               const bool include_boundary,
+              const bool include_exterior_boundary,
               mfem::Array<int> & dof_marker,
               mfem::Array<int> & tdofs)
 {
@@ -147,16 +148,19 @@ subdomainDofs(mfem::ParFiniteElementSpace & pfes,
     // Periodic faces and nonconforming master faces are not exterior, and neither
     // are faces shared between ranks. GetFaceInformation only tells those apart once
     // ParMesh::ExchangeFaceNbrData has run, so they are skipped explicitly.
-    std::vector<bool> shared_face(pmesh.GetNumFaces(), false);
-    for (const auto i : libMesh::make_range(pmesh.GetNSharedFaces()))
-      shared_face[pmesh.GetSharedFace(i)] = true;
-    for (const auto f : libMesh::make_range(pmesh.GetNumFaces()))
-      if (!shared_face[f] && pmesh.GetFaceInformation(f).IsBoundary())
-      {
-        pfes.GetFaceVDofs(f, vdofs);
-        for (const auto d : vdofs)
-          outside_marker[mfem::FiniteElementSpace::DecodeDof(d)] = 1;
-      }
+    if (!include_exterior_boundary)
+    {
+      std::vector<bool> shared_face(pmesh.GetNumFaces(), false);
+      for (const auto i : libMesh::make_range(pmesh.GetNSharedFaces()))
+        shared_face[pmesh.GetSharedFace(i)] = true;
+      for (const auto f : libMesh::make_range(pmesh.GetNumFaces()))
+        if (!shared_face[f] && pmesh.GetFaceInformation(f).IsBoundary())
+        {
+          pfes.GetFaceVDofs(f, vdofs);
+          for (const auto d : vdofs)
+            outside_marker[mfem::FiniteElementSpace::DecodeDof(d)] = 1;
+        }
+    }
     // Synchronizing makes an interface coinciding with a processor boundary visible
     // on the rank holding only the subdomain side of it.
     pfes.Synchronize(outside_marker);
