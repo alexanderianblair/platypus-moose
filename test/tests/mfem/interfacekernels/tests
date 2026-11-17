@@ -1,0 +1,29 @@
+[Tests]
+  design = 'MFEMJumpMassInterfaceKernel.md MFEMBoundaryIntegralPostprocessor.md'
+  issues = '#29632'
+  [MFEMJumpMassInterfaceKernel]
+    requirement = 'The system shall be able to impose, between variables either side of an '
+                  'interior boundary, a flux proportional to the jump in value across it, using '
+                  'MFEM,'
+    [serial]
+      type = CSVDiff
+      input = jump_mass.i
+      csvdiff = 'OutputData/JumpMass.csv OutputData/JumpMass_point_sample_0001.csv'
+      capabilities = 'mfem'
+      max_parallel = 1
+      recover = false
+      detail = 'reproducing the exact solution of one-dimensional diffusion through a contact '
+               'conductance, and'
+    []
+    [parallel]
+      type = CSVDiff
+      input = jump_mass.i
+      csvdiff = 'OutputData/JumpMass.csv OutputData/JumpMass_point_sample_0001.csv'
+      capabilities = 'mfem'
+      min_parallel = 2
+      max_parallel = 2
+      recover = false
+      detail = 'reproducing it when the interface is divided between processes.'
+    []
+  []
+[]
