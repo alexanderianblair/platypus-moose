@@ -75,11 +75,21 @@ public:
                                   mfem::BlockVector & trueX,
                                   mfem::BlockVector & trueRHS) override;
 
-  /// Form matrix representation of system operator as a HypreParMatrix.
+  /// Form matrix representation of system operator, either as the real-valued HypreParMatrix
+  /// equivalent to the complex system or, if SetAssembleComplexBlocks(true) has been called, as a
+  /// BlockOperator of ComplexHypreParMatrix blocks.
   /// Used when EquationSystem assembly level is set to 'LEGACY'.
   virtual void FormSystemMatrix(mfem::OperatorHandle & op,
                                 mfem::BlockVector & trueX,
                                 mfem::BlockVector & trueRHS) override;
+
+  /// Set whether FormSystemMatrix() keeps each block of the system as a ComplexHypreParMatrix, as
+  /// required by solvers working in complex arithmetic, instead of converting the system to its
+  /// equivalent real-valued HypreParMatrix.
+  void SetAssembleComplexBlocks(bool assemble_complex_blocks)
+  {
+    _assemble_complex_blocks = assemble_complex_blocks;
+  }
 
   /// Update variable from solution vector after solve
   virtual void SetTrialVariablesFromTrueVectors(const mfem::BlockVector & trueX) const override;
@@ -141,6 +151,10 @@ protected:
 
   // Pointer to complex GridFunctions to enable updates during nonlinear iterations
   Moose::MFEM::ComplexGridFunctions * _complex_gfuncs;
+
+  /// Whether FormSystemMatrix() forms a BlockOperator of ComplexHypreParMatrix blocks. Block i of
+  /// its domain and range is the [real; imaginary] true vector of trial/test variable i.
+  bool _assemble_complex_blocks = false;
 };
 
 template <class FormType>

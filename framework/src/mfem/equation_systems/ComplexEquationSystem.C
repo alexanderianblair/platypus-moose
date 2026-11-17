@@ -321,6 +321,12 @@ ComplexEquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
   DeleteHBlocks();
   _h_blocks.SetSize(_test_var_names.size(), _trial_var_names.size());
   _h_blocks = nullptr;
+  std::unique_ptr<mfem::BlockOperator> cmplx_op;
+  if (_assemble_complex_blocks)
+  {
+    cmplx_op = std::make_unique<mfem::BlockOperator>(_block_true_offsets);
+    cmplx_op->owns_blocks = 1;
+  }
   // Zero out RHS and sync memory
   trueRHS = 0.0;
   trueRHS.SyncToBlocks();
@@ -365,7 +371,14 @@ ComplexEquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
         continue;
 
       trueRHS.GetBlock(i) += aux_rhs;
-      _h_blocks(i, j) = aux_a->As<mfem::ComplexHypreParMatrix>()->GetSystemMatrix();
+      if (cmplx_op)
+      {
+        // Transfer ownership of the block to cmplx_op
+        aux_a->SetOperatorOwner(false);
+        cmplx_op->SetBlock(i, j, aux_a->As<mfem::ComplexHypreParMatrix>());
+      }
+      else
+        _h_blocks(i, j) = aux_a->As<mfem::ComplexHypreParMatrix>()->GetSystemMatrix();
     }
   }
 
@@ -373,8 +386,11 @@ ComplexEquationSystem::FormSystemMatrix(mfem::OperatorHandle & op,
   trueX.SyncFromBlocks();
   trueRHS.SyncFromBlocks();
 
-  // Create monolithic matrix
-  op.Reset(mfem::HypreParMatrixFromBlocks(_h_blocks));
+  if (cmplx_op)
+    op.Reset(cmplx_op.release());
+  else
+    // Create monolithic matrix
+    op.Reset(mfem::HypreParMatrixFromBlocks(_h_blocks));
 }
 
 // Equation system Mult
