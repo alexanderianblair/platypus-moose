@@ -78,6 +78,37 @@
     compute_devices = 'cpu cuda'
     recover = false
   []
+  [MFEMComplexMUMPS]
+    type = CSVDiff
+    input = complex.i
+    csvdiff = 'OutputData/complex_2d_quad_line_sample_0001.csv'
+    cli_args = 'Solvers/main/type=MFEMMUMPS Solvers/main/complex_arithmetic=true'
+    requirement = 'The system shall have the ability to solve a complex-valued problem using MFEM with a direct solver working in complex arithmetic.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [MFEMMixedSesquilinearComplexMUMPS]
+    type = CSVDiff
+    input = mixed_sesquilinear.i
+    csvdiff = 'OutputData/MixedSesquilinear.csv'
+    cli_args = 'Solvers/main/complex_arithmetic=true'
+    requirement = 'The system shall have the ability to solve a complex-valued problem with multiple variables and mixed sesquilinear form kernels using MFEM with a direct solver working in complex arithmetic.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu cuda'
+    recover = false
+  []
+  [MFEMComplexMUMPSRequiresComplexWeakForm]
+    type = RunException
+    input = ../kernels/diffusion.i
+    cli_args = 'Solvers/inactive="jacobi main" Solvers/mumps/type=MFEMMUMPS '
+               'Solvers/mumps/complex_arithmetic=true'
+    expect_err = 'Complex arithmetic requires a complex weak form.'
+    requirement = 'The system shall report an error if a direct solver working in complex arithmetic is requested for a real-valued MFEM weak form.'
+    capabilities = 'mfem'
+    compute_devices = 'cpu'
+    recover = false
+  []
   [MFEMMixedSesquilinearRealImag]
     type = CSVDiff
     input = mixed_sesquilinear_real_imag.i
